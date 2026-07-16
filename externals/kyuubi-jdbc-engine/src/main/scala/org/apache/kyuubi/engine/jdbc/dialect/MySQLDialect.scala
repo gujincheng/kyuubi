@@ -36,6 +36,29 @@ class MySQLDialect extends JdbcDialect {
     statement
   }
 
+  override def getSchemasOperation(catalog: String, schema: String): String = {
+    // MySQL/StarRocks/Doris treat database as schema; catalog is not meaningful here.
+    // catalog is intentionally ignored to avoid emitting an unusable catalog (e.g. 'def')
+    // that clients would use to qualify table references (e.g. `def.db.table`).
+    val query = new StringBuilder(
+      s"""
+         |SELECT SCHEMA_NAME AS $TABLE_SCHEM, NULL AS $TABLE_CATALOG
+         |FROM INFORMATION_SCHEMA.SCHEMATA
+         |""".stripMargin)
+
+    val filters = ArrayBuffer[String]()
+    if (StringUtils.isNotBlank(schema)) {
+      filters += s"SCHEMA_NAME LIKE '$schema'"
+    }
+
+    if (filters.nonEmpty) {
+      query.append(" WHERE ")
+      query.append(filters.mkString(" AND "))
+    }
+
+    query.toString()
+  }
+
   override def getTablesQuery(
       catalog: String,
       schema: String,
