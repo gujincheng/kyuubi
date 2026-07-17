@@ -53,6 +53,7 @@
 
     <modules>
         <module>dev/kyuubi-codecov</module>
+        <module>digiwin-plugins</module>
         <module>extensions/server/kyuubi-server-plugin</module>
         <module>extensions/flink/kyuubi-flink-token-provider</module>
         <module>extensions/spark/kyuubi-extension-spark-jdbc-dialect</module>

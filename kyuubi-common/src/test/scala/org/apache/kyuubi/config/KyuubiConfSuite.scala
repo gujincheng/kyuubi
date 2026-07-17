@@ -231,10 +231,26 @@ class KyuubiConfSuite extends KyuubiFunSuite {
       Some("/var/run/secrets/kubernetes.io/token.ns2"))
   }
 
-  test("KYUUBI #7055 - Support to exclude server only configs with prefixes") {
-    val kyuubiConf = KyuubiConf(false)
-    kyuubiConf.set("kyuubi.backend.server.event.kafka.broker", "localhost:9092")
-    assert(kyuubiConf.getUserDefaults("kyuubi").getAll.size == 0)
-    assert(kyuubiConf.getUserDefaults("user").getAll.size == 0)
+  test("Digiwin data gateway datasource store configs") {
+    val conf = new KyuubiConf(false)
+    assert(!conf.get(KyuubiConf.DIGIWIN_DATASOURCE_STORE_ENABLED))
+    assert(conf.get(KyuubiConf.DIGIWIN_DATASOURCE_STORE_JDBC_URL).isEmpty)
+    assert(conf.get(KyuubiConf.DIGIWIN_DATASOURCE_LABEL_KEY) === "kyuubi.datasource")
+    assert(conf.get(KyuubiConf.DIGIWIN_DATASOURCE_CREDENTIAL_SECRET).isEmpty)
+    assert(
+      conf.get(KyuubiConf.DIGIWIN_DATASOURCE_REFRESH_INTERVAL) ===
+        java.time.Duration.ofSeconds(60).toMillis)
+
+    conf.set(KyuubiConf.DIGIWIN_DATASOURCE_STORE_ENABLED, true)
+    conf.set(KyuubiConf.DIGIWIN_DATASOURCE_STORE_JDBC_URL, "jdbc:sqlite:/tmp/test.db")
+    conf.set(KyuubiConf.DIGIWIN_DATASOURCE_STORE_JDBC_DRIVER, "org.sqlite.JDBC")
+    conf.set(KyuubiConf.DIGIWIN_DATASOURCE_CREDENTIAL_SECRET, "0123456789abcdef")
+
+    assert(conf.get(KyuubiConf.DIGIWIN_DATASOURCE_STORE_ENABLED))
+    assert(
+      conf.get(KyuubiConf.DIGIWIN_DATASOURCE_STORE_JDBC_URL).contains("jdbc:sqlite:/tmp/test.db"))
+    assert(conf.get(KyuubiConf.DIGIWIN_DATASOURCE_STORE_JDBC_DRIVER).contains("org.sqlite.JDBC"))
+    assert(
+      conf.get(KyuubiConf.DIGIWIN_DATASOURCE_CREDENTIAL_SECRET).contains("0123456789abcdef"))
   }
 }

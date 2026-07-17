@@ -97,3 +97,6 @@ kyuubi-server/src/main/antlr4/org/apache/kyuubi/sql/gen/
 .github/instructions/
 .github/prompts/
 .github/skills/
+
+# For codegraph tool
+.codegraph/
