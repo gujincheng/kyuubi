@@ -4273,4 +4273,61 @@ object KyuubiConf {
       .audience(SERVER)
       .immutable
       .fallbackConf(HIVE_SERVER2_THRIFT_RESULTSET_DEFAULT_FETCH_SIZE)
+
+  // =========================== Digiwin Data Gateway P0 ===========================
+
+  val DIGIWIN_DATASOURCE_STORE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("kyuubi.digiwin.datasource.store.enabled")
+      .doc("Whether to enable the digiwin datasource registry backed by an independent JDBC store.")
+      .version("1.11.2")
+      .audience(SERVER)
+      .immutable
+      .booleanConf
+      .createWithDefault(false)
+
+  val DIGIWIN_DATASOURCE_STORE_JDBC_URL: OptionalConfigEntry[String] =
+    buildConf("kyuubi.digiwin.datasource.store.jdbc.url")
+      .doc("JDBC url of the independent datasource registry store, " +
+        "e.g. jdbc:sqlite:/path/to/datasource.db")
+      .version("1.11.2")
+      .audience(SERVER)
+      .immutable
+      .stringConf
+      .createOptional
+
+  val DIGIWIN_DATASOURCE_STORE_JDBC_DRIVER: OptionalConfigEntry[String] =
+    buildConf("kyuubi.digiwin.datasource.store.jdbc.driver")
+      .doc("JDBC driver class name of the datasource registry store.")
+      .version("1.11.2")
+      .audience(SERVER)
+      .immutable
+      .stringConf
+      .createOptional
+
+  val DIGIWIN_DATASOURCE_CREDENTIAL_SECRET: OptionalConfigEntry[String] =
+    buildConf("kyuubi.digiwin.datasource.credential.secret")
+      .doc("AES secret (16 bytes in UTF-8) used to encrypt/decrypt datasource credentials. " +
+        "If unset, a random key is generated per process and encrypted credentials won't " +
+        "survive a restart; set a stable secret for any persistent store.")
+      .version("1.11.2")
+      .audience(SERVER)
+      .immutable
+      .stringConf
+      .createOptional
+
+  val DIGIWIN_DATASOURCE_LABEL_KEY: ConfigEntry[String] =
+    buildConf("kyuubi.digiwin.datasource.label.key")
+      .doc("Session conf key carrying the datasource label selected by the client.")
+      .version("1.11.2")
+      .stringConf
+      .createWithDefault("kyuubi.datasource")
+
+  val DIGIWIN_DATASOURCE_REFRESH_INTERVAL: ConfigEntry[Long] =
+    buildConf("kyuubi.digiwin.datasource.refresh.interval")
+      .doc("Interval to refresh the in-memory datasource cache from the store.")
+      .version("1.11.2")
+      .audience(SERVER)
+      .immutable
+      .timeConf
+      .createWithDefault(java.time.Duration.ofSeconds(60).toMillis)
 }

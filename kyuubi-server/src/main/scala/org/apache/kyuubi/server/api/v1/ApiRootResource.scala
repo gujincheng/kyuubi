@@ -77,6 +77,9 @@ private[v1] class ApiRootResource extends ApiRequestContext {
   @Path("data-agent")
   def dataAgent: Class[DataAgentResource] = classOf[DataAgentResource]
 
+  @Path("datasources")
+  def datasources: Class[DatasourcesResource] = classOf[DatasourcesResource]
+
   @GET
   @Path("exception")
   @Produces(Array(MediaType.TEXT_PLAIN))
