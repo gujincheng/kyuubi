@@ -17,6 +17,9 @@
 
 package org.apache.kyuubi.server
 
+import org.apache.kyuubi.config.KyuubiConf
+import org.apache.kyuubi.digiwin.security.SqlInspectionHook
+import org.apache.kyuubi.operation.OperationHandle
 import org.apache.kyuubi.service.AbstractBackendService
 import org.apache.kyuubi.session.{KyuubiSessionManager, SessionManager}
 
@@ -25,4 +28,22 @@ class KyuubiBackendService(name: String) extends AbstractBackendService(name) {
   def this() = this(classOf[KyuubiBackendService].getSimpleName)
 
   override val sessionManager: SessionManager = new KyuubiSessionManager()
+
+  @volatile private var sqlInspectionHook: SqlInspectionHook = _
+
+  override def initialize(conf: KyuubiConf): Unit = {
+    sqlInspectionHook = new SqlInspectionHook(conf)
+    super.initialize(conf)
+  }
+
+  override def executeStatement(
+      sessionHandle: org.apache.kyuubi.session.SessionHandle,
+      statement: String,
+      confOverlay: Map[String, String],
+      runAsync: Boolean,
+      queryTimeout: Long): OperationHandle = {
+    val session = sessionManager.getSession(sessionHandle)
+    sqlInspectionHook.inspect(session, statement)
+    super.executeStatement(sessionHandle, statement, confOverlay, runAsync, queryTimeout)
+  }
 }

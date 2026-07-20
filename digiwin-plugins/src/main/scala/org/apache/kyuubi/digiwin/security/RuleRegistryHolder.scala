@@ -15,29 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.kyuubi.digiwin.datasource
-
-import org.apache.kyuubi.KyuubiException
+package org.apache.kyuubi.digiwin.security
 
 /**
- * Process-wide holder for the [[DatasourceRegistry]] and label key, initialized by KyuubiServer
- * at startup. The [[DatasourceConfAdvisor]] (loaded via SPI with a no-arg constructor) reads
- * from this holder instead of reconstructing its own registry per session.
+ * Process-wide holder for the [[RuleRegistry]], initialized by KyuubiServer at startup.
+ * The [[SqlInspectionHook]] reads from this holder.
  */
-object DatasourceRegistryHolder {
+object RuleRegistryHolder {
 
-  @volatile private var registryRef: Option[DatasourceRegistry] = None
-  @volatile private var labelKey: String = "kyuubi.datasource"
+  @volatile private var registryRef: Option[RuleRegistry] = None
 
-  def init(registry: DatasourceRegistry, labelKey: String): Unit = {
+  def init(registry: RuleRegistry): Unit = {
     registryRef = Some(registry)
-    this.labelKey = labelKey
   }
 
-  def registry: DatasourceRegistry = registryRef.getOrElse(
-    throw new KyuubiException("Datasource registry is not initialized"))
-
-  def registryOpt: Option[DatasourceRegistry] = registryRef
-
-  def getLabelKey: String = labelKey
+  def registryOpt: Option[RuleRegistry] = registryRef
 }

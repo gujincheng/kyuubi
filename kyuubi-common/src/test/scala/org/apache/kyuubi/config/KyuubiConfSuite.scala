@@ -253,4 +253,15 @@ class KyuubiConfSuite extends KyuubiFunSuite {
     assert(
       conf.get(KyuubiConf.DIGIWIN_DATASOURCE_CREDENTIAL_SECRET).contains("0123456789abcdef"))
   }
+
+  test("Digiwin SQL inspection configs") {
+    val conf = new KyuubiConf(false)
+    assert(!conf.get(KyuubiConf.DIGIWIN_SQL_INSPECTION_ENABLED))
+    assert(conf.get(KyuubiConf.DIGIWIN_SQL_INSPECTION_WHITELIST).isEmpty)
+
+    conf.set(KyuubiConf.DIGIWIN_SQL_INSPECTION_ENABLED, true)
+    conf.set(KyuubiConf.DIGIWIN_SQL_INSPECTION_WHITELIST, Seq("admin", "dba"))
+    assert(conf.get(KyuubiConf.DIGIWIN_SQL_INSPECTION_ENABLED))
+    assert(conf.get(KyuubiConf.DIGIWIN_SQL_INSPECTION_WHITELIST) === Seq("admin", "dba"))
+  }
 }
