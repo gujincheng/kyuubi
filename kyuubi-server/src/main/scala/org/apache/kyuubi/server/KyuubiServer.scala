@@ -28,17 +28,19 @@ import org.apache.kyuubi.config.KyuubiConf
 import org.apache.kyuubi.config.KyuubiConf.{
   DIGIWIN_DATASOURCE_LABEL_KEY,
   DIGIWIN_DATASOURCE_STORE_ENABLED,
+  DIGIWIN_SQL_INSPECTION_ENABLED,
   FRONTEND_PROTOCOLS,
   FrontendProtocols,
   KYUUBI_KUBERNETES_CONF_PREFIX
 }
 import org.apache.kyuubi.config.KyuubiConf.FrontendProtocols._
 import org.apache.kyuubi.digiwin.datasource.{DatasourceRegistry, DatasourceRegistryHolder}
+import org.apache.kyuubi.digiwin.security.{RuleRegistry, RuleRegistryHolder}
 import org.apache.kyuubi.events.{EventBus, KyuubiServerInfoEvent, ServerEventHandlerRegister}
 import org.apache.kyuubi.ha.HighAvailabilityConf._
 import org.apache.kyuubi.ha.client.{AuthTypes, ServiceDiscovery}
 import org.apache.kyuubi.metrics.{MetricsConf, MetricsSystem}
-import org.apache.kyuubi.server.api.v1.DatasourcesResource
+import org.apache.kyuubi.server.api.v1.{DatasourcesResource, RulesResource}
 import org.apache.kyuubi.server.metadata.jdbc.JDBCMetadataStoreConf
 import org.apache.kyuubi.service.{AbstractBackendService, AbstractFrontendService, Serverable, ServiceState}
 import org.apache.kyuubi.session.KyuubiSessionManager
@@ -196,6 +198,7 @@ class KyuubiServer(name: String) extends Serverable(name) {
     new KyuubiBackendService() with BackendServiceMetric
 
   private var datasourceRegistry: Option[DatasourceRegistry] = None
+  private var ruleRegistry: Option[RuleRegistry] = None
 
   override lazy val frontendServices: Seq[AbstractFrontendService] =
     conf.get(FRONTEND_PROTOCOLS).map(FrontendProtocols.withName).map {
@@ -226,6 +229,7 @@ class KyuubiServer(name: String) extends Serverable(name) {
 
     initLoggerEventHandler(conf)
     initDatasourceRegistry(conf)
+    initSqlInspection(conf)
   }
 
   private def initDatasourceRegistry(conf: KyuubiConf): Unit = {
@@ -239,6 +243,17 @@ class KyuubiServer(name: String) extends Serverable(name) {
     }
   }
 
+  private def initSqlInspection(conf: KyuubiConf): Unit = {
+    if (conf.get(DIGIWIN_SQL_INSPECTION_ENABLED)) {
+      val reg = new RuleRegistry(conf)
+      reg.start()
+      RuleRegistryHolder.init(reg)
+      RulesResource.init(reg)
+      ruleRegistry = Some(reg)
+      info("Digiwin SQL inspection registry initialized.")
+    }
+  }
+
   override def start(): Unit = {
     super.start()
     KyuubiServer.kyuubiServer = this
@@ -248,6 +263,9 @@ class KyuubiServer(name: String) extends Serverable(name) {
   override def stop(): Unit = {
     KyuubiServerInfoEvent(this, ServiceState.STOPPED).foreach(EventBus.post)
     datasourceRegistry.foreach { reg =>
+      Utils.tryLogNonFatalError(reg.stop())
+    }
+    ruleRegistry.foreach { reg =>
       Utils.tryLogNonFatalError(reg.stop())
     }
     super.stop()

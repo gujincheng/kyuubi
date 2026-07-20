@@ -80,6 +80,9 @@ private[v1] class ApiRootResource extends ApiRequestContext {
   @Path("datasources")
   def datasources: Class[DatasourcesResource] = classOf[DatasourcesResource]
 
+  @Path("sql-rules")
+  def sqlRules: Class[RulesResource] = classOf[RulesResource]
+
   @GET
   @Path("exception")
   @Produces(Array(MediaType.TEXT_PLAIN))

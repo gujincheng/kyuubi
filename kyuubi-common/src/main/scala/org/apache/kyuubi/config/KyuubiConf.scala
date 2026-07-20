@@ -4330,4 +4330,22 @@ object KyuubiConf {
       .immutable
       .timeConf
       .createWithDefault(java.time.Duration.ofSeconds(60).toMillis)
+
+  val DIGIWIN_SQL_INSPECTION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("kyuubi.digiwin.sql.inspection.enabled")
+      .doc("Whether to inspect and block dangerous SQL at the gateway. " +
+        "Rules are managed via the /api/v1/sql-rules REST API and take effect immediately.")
+      .version("1.11.2")
+      .serverOnly
+      .booleanConf
+      .createWithDefault(false)
+
+  val DIGIWIN_SQL_INSPECTION_WHITELIST: ConfigEntry[Seq[String]] =
+    buildConf("kyuubi.digiwin.sql.inspection.whitelist")
+      .doc("Users exempted from SQL inspection.")
+      .version("1.11.2")
+      .serverOnly
+      .stringConf
+      .toSequence()
+      .createWithDefault(Nil)
 }
