@@ -22,6 +22,7 @@ import org.apache.kyuubi.config.KyuubiConf
 import org.apache.kyuubi.config.KyuubiConf._
 import org.apache.kyuubi.config.KyuubiReservedKeys.KYUUBI_CLIENT_IP_KEY
 import org.apache.kyuubi.digiwin.datasource.DatasourceRegistryHolder
+import org.apache.kyuubi.events.EventBus
 import org.apache.kyuubi.session.{AbstractSession, Session}
 
 /** Error code returned to clients when SQL is blocked (FR-5). */
@@ -59,6 +60,18 @@ class SqlInspectionHook(conf: KyuubiConf) extends Logging {
     hit.foreach { rule =>
       val reason = s"rule=${rule.id}(${rule.ruleType}:${rule.pattern})"
       alertNotifier.notify(AlertEvent(user, clientIp, label, statement, rule.name, reason))
+      EventBus.post(SqlBlockedEvent(
+        user = user,
+        clientIp = clientIp,
+        datasourceLabel = label,
+        engineType = engineType,
+        statement = statement,
+        ruleId = rule.id,
+        ruleName = rule.name,
+        ruleType = rule.ruleType,
+        reason = reason,
+        action = rule.action,
+        eventTime = System.currentTimeMillis()))
       throw new KyuubiSQLException(
         s"SQL is blocked by gateway inspection: $reason",
         SqlBlockedErrorCode.SQL_BLOCKED,

@@ -23,13 +23,15 @@ import com.codahale.metrics.MetricRegistry
 import org.apache.commons.lang3.StringUtils
 
 import org.apache.kyuubi.{KyuubiSQLException, Utils}
+import org.apache.kyuubi.config.KyuubiConf._
 import org.apache.kyuubi.config.KyuubiReservedKeys.KYUUBI_OPERATION_HANDLE_KEY
+import org.apache.kyuubi.digiwin.datasource.DatasourceRegistryHolder
 import org.apache.kyuubi.events.{EventBus, KyuubiOperationEvent}
 import org.apache.kyuubi.metrics.MetricsConstants.{OPERATION_FAIL, OPERATION_OPEN, OPERATION_STATE, OPERATION_TOTAL}
 import org.apache.kyuubi.metrics.MetricsSystem
 import org.apache.kyuubi.operation.FetchOrientation.FetchOrientation
 import org.apache.kyuubi.operation.OperationState.OperationState
-import org.apache.kyuubi.session.{KyuubiSession, KyuubiSessionImpl, KyuubiSessionManager, Session}
+import org.apache.kyuubi.session.{AbstractSession, KyuubiSession, KyuubiSessionImpl, KyuubiSessionManager, Session}
 import org.apache.kyuubi.shaded.hive.service.rpc.thrift._
 import org.apache.kyuubi.shaded.thrift.TException
 import org.apache.kyuubi.shaded.thrift.transport.TTransportException
@@ -227,6 +229,14 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
 
   def getOperationEvent: KyuubiOperationEvent = {
     val kyuubiSession = session.asInstanceOf[KyuubiSession]
+    val sessionConf = session.asInstanceOf[AbstractSession].normalizedConf
+    val clientIp = session.asInstanceOf[AbstractSession].clientIpAddress
+    val datasourceLabel = sessionConf.getOrElse(
+      session.sessionManager.getConf.get(DIGIWIN_DATASOURCE_LABEL_KEY), "")
+    val engineType = resolveEngineType(sessionConf, datasourceLabel)
+    val sqlBlockedReason = resolveSqlBlockedReason
+    val executionDuration =
+      if (completedTime > 0L && startTime > 0L) completedTime - startTime else 0L
     KyuubiOperationEvent(
       statementId,
       Option(remoteOpHandle()).map(OperationHandle(_).identifier.toString).orNull,
@@ -237,11 +247,35 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
       createTime,
       startTime,
       completedTime,
+      executionDuration,
       Option(operationException),
       kyuubiSession.handle.identifier.toString,
       kyuubiSession.user,
       kyuubiSession.sessionType.toString,
       kyuubiSession.connectionUrl,
-      metrics)
+      metrics,
+      clientIp,
+      datasourceLabel,
+      engineType,
+      sqlBlockedReason)
+  }
+
+  private def resolveEngineType(
+      sessionConf: Map[String, String], label: String): String = {
+    if (label.nonEmpty) {
+      DatasourceRegistryHolder.registryOpt
+        .flatMap(_.get(label).map(_.engineType))
+        .getOrElse("")
+    } else {
+      sessionConf.getOrElse("kyuubi.engine.type", "")
+    }
+  }
+
+  private def resolveSqlBlockedReason: String = {
+    Option(operationException)
+      .filter(_.isInstanceOf[KyuubiSQLException])
+      .map(_.asInstanceOf[KyuubiSQLException])
+      .filter(e => e.getSQLState != null && e.getSQLState == "SQL_BLOCKED")
+      .map(_.getMessage).getOrElse("")
   }
 }
