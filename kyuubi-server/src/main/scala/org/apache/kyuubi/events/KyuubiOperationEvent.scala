@@ -53,12 +53,17 @@ case class KyuubiOperationEvent(
     createTime: Long,
     startTime: Long,
     completeTime: Long,
+    executionDuration: Long,
     exception: Option[Throwable],
     sessionId: String,
     sessionUser: String,
     sessionType: String,
     kyuubiInstance: String,
-    metrics: Map[String, String]) extends KyuubiEvent {
+    metrics: Map[String, String],
+    clientIp: String,
+    datasourceLabel: String,
+    engineType: String,
+    sqlBlockedReason: String) extends KyuubiEvent {
 
   // operation events are partitioned by the date when the corresponding operations are
   // created.

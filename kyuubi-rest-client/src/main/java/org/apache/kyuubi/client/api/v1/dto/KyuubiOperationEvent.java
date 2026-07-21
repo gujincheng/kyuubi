@@ -53,6 +53,16 @@ public class KyuubiOperationEvent {
 
   private OperationProgress progress;
 
+  private long executionDuration;
+
+  private String clientIp;
+
+  private String datasourceLabel;
+
+  private String engineType;
+
+  private String sqlBlockedReason;
+
   public KyuubiOperationEvent() {}
 
   public KyuubiOperationEvent(
@@ -71,7 +81,12 @@ public class KyuubiOperationEvent {
       String sessionType,
       String kyuubiInstance,
       Map<String, String> metrics,
-      OperationProgress progress) {
+      OperationProgress progress,
+      long executionDuration,
+      String clientIp,
+      String datasourceLabel,
+      String engineType,
+      String sqlBlockedReason) {
     this.statementId = statementId;
     this.remoteId = remoteId;
     this.statement = statement;
@@ -88,6 +103,11 @@ public class KyuubiOperationEvent {
     this.kyuubiInstance = kyuubiInstance;
     this.metrics = metrics;
     this.progress = progress;
+    this.executionDuration = executionDuration;
+    this.clientIp = clientIp;
+    this.datasourceLabel = datasourceLabel;
+    this.engineType = engineType;
+    this.sqlBlockedReason = sqlBlockedReason;
   }
 
   public static KyuubiOperationEvent.KyuubiOperationEventBuilder builder() {
@@ -126,6 +146,16 @@ public class KyuubiOperationEvent {
     private Map<String, String> metrics;
 
     private OperationProgress progress;
+
+    private long executionDuration;
+
+    private String clientIp;
+
+    private String datasourceLabel;
+
+    private String engineType;
+
+    private String sqlBlockedReason;
 
     public KyuubiOperationEventBuilder() {}
 
@@ -213,6 +243,34 @@ public class KyuubiOperationEvent {
       return this;
     }
 
+    public KyuubiOperationEvent.KyuubiOperationEventBuilder executionDuration(
+        final long executionDuration) {
+      this.executionDuration = executionDuration;
+      return this;
+    }
+
+    public KyuubiOperationEvent.KyuubiOperationEventBuilder clientIp(final String clientIp) {
+      this.clientIp = clientIp;
+      return this;
+    }
+
+    public KyuubiOperationEvent.KyuubiOperationEventBuilder datasourceLabel(
+        final String datasourceLabel) {
+      this.datasourceLabel = datasourceLabel;
+      return this;
+    }
+
+    public KyuubiOperationEvent.KyuubiOperationEventBuilder engineType(final String engineType) {
+      this.engineType = engineType;
+      return this;
+    }
+
+    public KyuubiOperationEvent.KyuubiOperationEventBuilder sqlBlockedReason(
+        final String sqlBlockedReason) {
+      this.sqlBlockedReason = sqlBlockedReason;
+      return this;
+    }
+
     public KyuubiOperationEvent build() {
       return new KyuubiOperationEvent(
           statementId,
@@ -230,7 +288,12 @@ public class KyuubiOperationEvent {
           sessionType,
           kyuubiInstance,
           metrics,
-          progress);
+          progress,
+          executionDuration,
+          clientIp,
+          datasourceLabel,
+          engineType,
+          sqlBlockedReason);
     }
   }
 
@@ -360,5 +423,45 @@ public class KyuubiOperationEvent {
 
   public void setProgress(OperationProgress progress) {
     this.progress = progress;
+  }
+
+  public long getExecutionDuration() {
+    return executionDuration;
+  }
+
+  public void setExecutionDuration(long executionDuration) {
+    this.executionDuration = executionDuration;
+  }
+
+  public String getClientIp() {
+    return clientIp;
+  }
+
+  public void setClientIp(String clientIp) {
+    this.clientIp = clientIp;
+  }
+
+  public String getDatasourceLabel() {
+    return datasourceLabel;
+  }
+
+  public void setDatasourceLabel(String datasourceLabel) {
+    this.datasourceLabel = datasourceLabel;
+  }
+
+  public String getEngineType() {
+    return engineType;
+  }
+
+  public void setEngineType(String engineType) {
+    this.engineType = engineType;
+  }
+
+  public String getSqlBlockedReason() {
+    return sqlBlockedReason;
+  }
+
+  public void setSqlBlockedReason(String sqlBlockedReason) {
+    this.sqlBlockedReason = sqlBlockedReason;
   }
 }

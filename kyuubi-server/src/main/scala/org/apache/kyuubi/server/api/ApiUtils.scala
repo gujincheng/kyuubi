@@ -103,6 +103,11 @@ object ApiUtils extends Logging {
       .kyuubiInstance(opEvent.kyuubiInstance)
       .metrics(opEvent.metrics.asJava)
       .progress(operationProgress(operation))
+      .executionDuration(opEvent.executionDuration)
+      .clientIp(opEvent.clientIp)
+      .datasourceLabel(opEvent.datasourceLabel)
+      .engineType(opEvent.engineType)
+      .sqlBlockedReason(opEvent.sqlBlockedReason)
       .build()
   }
 
