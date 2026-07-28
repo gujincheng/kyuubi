@@ -49,7 +49,10 @@ class SqlInspectionEngineSuite extends KyuubiFunSuite {
       .contains(updateNoWhere))
     assert(SqlInspectionEngine.inspect("DELETE FROM t WHERE id=1", allRules, "u", "jdbc").isEmpty)
     assert(SqlInspectionEngine.inspect(
-      "UPDATE t SET a=1 WHERE id=1", allRules, "u", "jdbc").isEmpty)
+      "UPDATE t SET a=1 WHERE id=1",
+      allRules,
+      "u",
+      "jdbc").isEmpty)
   }
 
   test("REGEX rule matches custom pattern") {

@@ -165,25 +165,25 @@ Engine（JDBC → StarRocks / Spark SQL → Spark）
 
 ### 5.2 功能需求清单
 
-|   能力域    |  编号   |                                                                需求                                                                | 优先级 |
-|----------|-------|----------------------------------------------------------------------------------------------------------------------------------|-----|
-| 数据源元数据管理 | FR-1  | 数据源注册 CRUD：label、引擎类型、JDBC URL、用户名、加密凭据、连接池参数；REST API 必须支持且热生效                                                                  | P0  |
-|          | FR-2  | label 代入：客户端仅传 `kyuubi.datasource=<label>`，`DatasourceConfAdvisor` 自动注入完整引擎配置，凭据不出现在客户端                                          | P0  |
-|          | FR-3  | 凭据加密存储（不落明文）                                                                                                                     | P0  |
-| SQL 拦截   | FR-4  | 危险 SQL 拦截规则（DROP/TRUNCATE/无 WHERE 的 UPDATE·DELETE/大表 SELECT * 等），规则可配置                                                           | P0  |
-|          | FR-5  | 白名单例外 + 拦截告警（钉钉/邮件）+ 明确错误码                                                                                                       | P0  |
-| 审计日志     | FR-6  | 结构化审计字段：用户、SQL、数据源(label)、引擎、时间、耗时、状态、行数、来源 IP                                                                                   | P0  |
-|          | FR-7  | 审计落 JSON 文件（按时间分区）                                                                                                               | P0  |
-| 客户端协议兼容  | FR-8  | 验证 DBeaver/Navicat 经 Kyuubi JDBC 驱动（Thrift Binary）→ JDBC Engine → StarRocks 端到端查询的协议兼容性                                          | P0  |
-|          | FR-9  | JDBC Engine 元数据层级兼容（getSchemas，已由 fde0be6e6 解决）；流式结果集异常在 1.11.1 不复现，大结果集 OOM 作为已知风险观察 | P0  |
-| 限流熔断     | FR-10 | 连接级限流（复用现有 `SessionLimiter`）                                                                                                     | P0  |
-|          | FR-11 | QPS/并发查询级限流 + 慢查询自动 Kill + 引擎不可用熔断降级                                                                                             | P0  |
-| 监控可观测    | FR-12 | Prometheus 指标 + Grafana 大盘 + 告警规则                                                                                                | P1  |
-| 查询路由     | FR-13 | 规则路由（简单→StarRocks、复杂→Spark），用户仍可用 label 显式覆盖                                                                                     | P1  |
-| 统一认证     | FR-14 | LDAP/Kerberos/SSO 接入，插件点预留                                                                                                       | P2  |
-| 统一权限     | FR-15 | RBAC + 表/列/行级，插件点预留                                                                                                              | P2  |
-| 审计增强     | FR-16 | 审计输出 Kafka → ES/ClickHouse + 查询 UI                                                                                               | P2  |
-| 多引擎扩展    | FR-17 | Flink/Hive/Trino/其他 JDBC 库接入                                                                                                     | P2  |
+|   能力域    |  编号   |                                           需求                                            | 优先级 |
+|----------|-------|-----------------------------------------------------------------------------------------|-----|
+| 数据源元数据管理 | FR-1  | 数据源注册 CRUD：label、引擎类型、JDBC URL、用户名、加密凭据、连接池参数；REST API 必须支持且热生效                         | P0  |
+|          | FR-2  | label 代入：客户端仅传 `kyuubi.datasource=<label>`，`DatasourceConfAdvisor` 自动注入完整引擎配置，凭据不出现在客户端 | P0  |
+|          | FR-3  | 凭据加密存储（不落明文）                                                                            | P0  |
+| SQL 拦截   | FR-4  | 危险 SQL 拦截规则（DROP/TRUNCATE/无 WHERE 的 UPDATE·DELETE/大表 SELECT * 等），规则可配置                  | P0  |
+|          | FR-5  | 白名单例外 + 拦截告警（钉钉/邮件）+ 明确错误码                                                              | P0  |
+| 审计日志     | FR-6  | 结构化审计字段：用户、SQL、数据源(label)、引擎、时间、耗时、状态、行数、来源 IP                                          | P0  |
+|          | FR-7  | 审计落 JSON 文件（按时间分区）                                                                      | P0  |
+| 客户端协议兼容  | FR-8  | 验证 DBeaver/Navicat 经 Kyuubi JDBC 驱动（Thrift Binary）→ JDBC Engine → StarRocks 端到端查询的协议兼容性 | P0  |
+|          | FR-9  | JDBC Engine 元数据层级兼容（getSchemas，已由 fde0be6e6 解决）；流式结果集异常在 1.11.1 不复现，大结果集 OOM 作为已知风险观察   | P0  |
+| 限流熔断     | FR-10 | 连接级限流（复用现有 `SessionLimiter`）                                                            | P0  |
+|          | FR-11 | QPS/并发查询级限流 + 慢查询自动 Kill + 引擎不可用熔断降级                                                    | P0  |
+| 监控可观测    | FR-12 | Prometheus 指标 + Grafana 大盘 + 告警规则                                                       | P1  |
+| 查询路由     | FR-13 | 规则路由（简单→StarRocks、复杂→Spark），用户仍可用 label 显式覆盖                                            | P1  |
+| 统一认证     | FR-14 | LDAP/Kerberos/SSO 接入，插件点预留                                                              | P2  |
+| 统一权限     | FR-15 | RBAC + 表/列/行级，插件点预留                                                                     | P2  |
+| 审计增强     | FR-16 | 审计输出 Kafka → ES/ClickHouse + 查询 UI                                                      | P2  |
+| 多引擎扩展    | FR-17 | Flink/Hive/Trino/其他 JDBC 库接入                                                            | P2  |
 
 ### 5.3 各能力详细需求
 
@@ -259,15 +259,15 @@ Engine（JDBC → StarRocks / Spark SQL → Spark）
 
 ## 八、风险与应对
 
-|                          风险                          |                                   应对                                   |
-|------------------------------------------------------|------------------------------------------------------------------------|
-| DBeaver 看不到 StarRocks db/表平铺（getSchemas 未实现） | 已由提交 fde0be6e6 解决；端到端回归用例见 Task 7.1（DBeaver -> Thrift Binary -> JDBC Engine -> StarRocks） |
-| JDBC Engine `incrementalCollect` 默认 false，大结果集全量物化 OOM 隐患 | P1 评估 `kyuubi.engine.jdbc.operation.incremental.collect` 推荐配置；当前 1.11.1 无流式报错 |
-| 数据源元数据热生效与多实例缓存一致性                                   | 定时刷新 + 变更主动刷新 + 手动刷新 API                                               |
-| SQL 拦截规则误判阻断正常查询                                     | 白名单机制 + 告警先行于硬拦截 + 规则灰度发布                                              |
-| 核心 patch 影响社区版本合并/后续升级                               | 严守"少量、集中、加法式"原则，改动点已在第四章列清单                                            |
-| 认证/权限本期暂缓导致安全缺口                                      | v1 依赖网络隔离 + 限流 + 审计可追溯作为补偿控制，P2 尽快补齐，风险显式接受而非掩盖                        |
-| 1-2 人团队 P0 范围仍偏大（5 大类能力）                             | 需求文档只定义 P0 范围，具体内部实施顺序留给实现计划阶段决定                                       |
+|                            风险                             |                                            应对                                             |
+|-----------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| DBeaver 看不到 StarRocks db/表平铺（getSchemas 未实现）              | 已由提交 fde0be6e6 解决；端到端回归用例见 Task 7.1（DBeaver -> Thrift Binary -> JDBC Engine -> StarRocks） |
+| JDBC Engine `incrementalCollect` 默认 false，大结果集全量物化 OOM 隐患 | P1 评估 `kyuubi.engine.jdbc.operation.incremental.collect` 推荐配置；当前 1.11.1 无流式报错             |
+| 数据源元数据热生效与多实例缓存一致性                                        | 定时刷新 + 变更主动刷新 + 手动刷新 API                                                                  |
+| SQL 拦截规则误判阻断正常查询                                          | 白名单机制 + 告警先行于硬拦截 + 规则灰度发布                                                                 |
+| 核心 patch 影响社区版本合并/后续升级                                    | 严守"少量、集中、加法式"原则，改动点已在第四章列清单                                                               |
+| 认证/权限本期暂缓导致安全缺口                                           | v1 依赖网络隔离 + 限流 + 审计可追溯作为补偿控制，P2 尽快补齐，风险显式接受而非掩盖                                           |
+| 1-2 人团队 P0 范围仍偏大（5 大类能力）                                  | 需求文档只定义 P0 范围，具体内部实施顺序留给实现计划阶段决定                                                          |
 
 ---
 

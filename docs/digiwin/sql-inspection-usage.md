@@ -55,25 +55,25 @@ REST 前端 `http://<bind.host>:10099`,API 前缀 `/api/v1/sql-rules`。
 
 ### 规则模型
 
-| 字段 | 说明 |
-|------|------|
-| `id` | 规则唯一标识,如 `block-drop` |
-| `name` | 展示名,如 `禁止 DROP` |
-| `ruleType` | `KEYWORD` / `WITHOUT_WHERE` / `REGEX` 三选一(见下) |
-| `pattern` | KEYWORD->关键字(`DROP`);WITHOUT_WHERE->`DELETE`/`UPDATE`;REGEX->正则 |
-| `action` | `DENY`(P0 仅此一种) |
-| `engineScope` | 可选,限定引擎类型(如 `jdbc`);空=对所有引擎生效 |
-| `userScope` | 可选,用户列表(如 `["alice","carol"]`);空=对所有用户生效 |
-| `enabled` | `true`/`false` |
-| `description` | 说明 |
+|      字段       |                               说明                                |
+|---------------|-----------------------------------------------------------------|
+| `id`          | 规则唯一标识,如 `block-drop`                                           |
+| `name`        | 展示名,如 `禁止 DROP`                                                 |
+| `ruleType`    | `KEYWORD` / `WITHOUT_WHERE` / `REGEX` 三选一(见下)                   |
+| `pattern`     | KEYWORD->关键字(`DROP`);WITHOUT_WHERE->`DELETE`/`UPDATE`;REGEX->正则 |
+| `action`      | `DENY`(P0 仅此一种)                                                 |
+| `engineScope` | 可选,限定引擎类型(如 `jdbc`);空=对所有引擎生效                                   |
+| `userScope`   | 可选,用户列表(如 `["alice","carol"]`);空=对所有用户生效                        |
+| `enabled`     | `true`/`false`                                                  |
+| `description` | 说明                                                              |
 
 ### 三种规则类型
 
-| 类型 | 匹配逻辑 | 典型用法 |
-|------|---------|---------|
-| `KEYWORD` | SQL 归一化后以关键字开头 | `DROP`、`TRUNCATE`、`ALTER`、`CREATE` |
-| `WITHOUT_WHERE` | 以 DELETE/UPDATE 开头**且无 WHERE** | 防全表删除/更新 |
-| `REGEX` | 用户自定义正则匹配(大小写不敏感) | 任意复杂规则,如 `SELECT\s+\*` |
+|       类型        |              匹配逻辑              |                典型用法                |
+|-----------------|--------------------------------|------------------------------------|
+| `KEYWORD`       | SQL 归一化后以关键字开头                 | `DROP`、`TRUNCATE`、`ALTER`、`CREATE` |
+| `WITHOUT_WHERE` | 以 DELETE/UPDATE 开头**且无 WHERE** | 防全表删除/更新                           |
+| `REGEX`         | 用户自定义正则匹配(大小写不敏感)              | 任意复杂规则,如 `SELECT\s+\*`             |
 
 > 匹配前会对 SQL 归一化:去掉块注释 `/* */`、行注释 `--`、trim。多语句(`;` 分隔)逐条检查,任一命中整条拦截。
 
@@ -143,12 +143,12 @@ curl -X POST http://192.168.206.212:10099/api/v1/sql-rules/refresh
 
 ## 四、作用域语义
 
-| 场景 | 配置 |
-|------|------|
-| 对所有人、所有引擎禁 DROP | `engineScope=""`, `userScope=[]` |
-| 只对 JDBC(StarRocks)禁 DROP,Spark 不限 | `engineScope="jdbc"` |
-| 只对 alice、carol 禁 SELECT * | `userScope=["alice","carol"]` |
-| bob 完全不受任何拦截 | 把 `bob` 加进 `kyuubi.digiwin.sql.inspection.whitelist` |
+|                场景                 |                          配置                          |
+|-----------------------------------|------------------------------------------------------|
+| 对所有人、所有引擎禁 DROP                   | `engineScope=""`, `userScope=[]`                     |
+| 只对 JDBC(StarRocks)禁 DROP,Spark 不限 | `engineScope="jdbc"`                                 |
+| 只对 alice、carol 禁 SELECT *         | `userScope=["alice","carol"]`                        |
+| bob 完全不受任何拦截                      | 把 `bob` 加进 `kyuubi.digiwin.sql.inspection.whitelist` |
 
 > `engineScope`/`userScope`(规则级,动态,REST 可改)与 `whitelist`(全局,静态配置)职责分开:前者精细到单条规则对哪些用户/引擎生效,后者是某些用户完全不受拦截。
 
@@ -190,15 +190,15 @@ WARN ... [SQL_BLOCKED] user=root ip=127.0.0.1 datasource=sr-prod rule=禁止 DRO
 
 ## 六、验收自查
 
-| 测试 | 期望 |
-|------|------|
-| 创建规则后,匹配的 SQL | 返回 `SQL_BLOCKED` |
-| 不匹配的 SQL | 正常执行 |
-| REST 改规则后(不重启) | 下一条 SQL 立即按新规则 |
-| `engineScope=jdbc` + label 会话 | jdbc 命中、spark 不命中 |
-| `userScope=["alice"]` | alice 命中、其他用户不命中 |
-| whitelist 用户 | 所有 SQL 放行 |
-| DELETE 带 WHERE | 放行(WITHOUT_WHERE 不命中) |
+|              测试               |          期望           |
+|-------------------------------|-----------------------|
+| 创建规则后,匹配的 SQL                 | 返回 `SQL_BLOCKED`      |
+| 不匹配的 SQL                      | 正常执行                  |
+| REST 改规则后(不重启)                | 下一条 SQL 立即按新规则        |
+| `engineScope=jdbc` + label 会话 | jdbc 命中、spark 不命中     |
+| `userScope=["alice"]`         | alice 命中、其他用户不命中      |
+| whitelist 用户                  | 所有 SQL 放行             |
+| DELETE 带 WHERE                | 放行(WITHOUT_WHERE 不命中) |
 
 ## 七、工作机制
 
@@ -228,3 +228,4 @@ KyuubiServer.KyuubiBackendService.executeStatement
 - **引擎报 `No suitable driver`**:设 `kyuubi.engine.jdbc.extra.classpath` 指向目标库的 JDBC 驱动 jar。
 - **拦截告警在哪**:服务端日志,搜 `SQL_BLOCKED`(WARN 级别)。
 - **拦截事件是否进审计**:P0 暂未接入结构化审计日志(FR-6/7),目前仅在服务端日志输出;后续审计功能会记录。
+

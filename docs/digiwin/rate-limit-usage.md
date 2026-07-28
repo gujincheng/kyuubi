@@ -4,17 +4,17 @@ Kyuubi 数据网关的**限流熔断**能力。本期（P0）**全部复用 Kyuu
 
 ## 一、能力总览
 
-| 能力 | 实现方式 | 状态 | 备注 |
-|------|---------|------|------|
-| 连接级限流（每用户/IP/user+IP） | `SessionLimiter` | ✅ 原生支持 | 配置即用 |
-| 黑白名单（deny user / deny ip / unlimited user） | `SessionLimiterWithAccessControlListImpl` | ✅ 原生支持 | 支持 REST 热更新 |
-| 引擎启动并发限流 | `Semaphore` | ✅ 原生支持 | internal 配置 |
-| 引擎启动超时（快速失败） | `ENGINE_INIT_TIMEOUT` | ✅ 原生支持 | 默认 180s |
-| 查询超时 + 服务端自动取消 | `OPERATION_QUERY_TIMEOUT` + monitor | ✅ 原生支持 | 默认关闭，需开启 |
-| 慢查询手动 Kill | REST API | ✅ 原生支持 | cancel/close operation |
-| 会话空闲超时回收 | `SESSION_IDLE_TIMEOUT` | ✅ 原生支持 | 默认 6h |
-| **QPS / 并发查询级限流** | — | ❌ 缺口 | P1 开发 |
-| **引擎失败计数熔断器** | — | ❌ 缺口 | P1 评估 |
+|                     能力                     |                   实现方式                    |   状态   |           备注           |
+|--------------------------------------------|-------------------------------------------|--------|------------------------|
+| 连接级限流（每用户/IP/user+IP）                      | `SessionLimiter`                          | ✅ 原生支持 | 配置即用                   |
+| 黑白名单（deny user / deny ip / unlimited user） | `SessionLimiterWithAccessControlListImpl` | ✅ 原生支持 | 支持 REST 热更新            |
+| 引擎启动并发限流                                   | `Semaphore`                               | ✅ 原生支持 | internal 配置            |
+| 引擎启动超时（快速失败）                               | `ENGINE_INIT_TIMEOUT`                     | ✅ 原生支持 | 默认 180s                |
+| 查询超时 + 服务端自动取消                             | `OPERATION_QUERY_TIMEOUT` + monitor       | ✅ 原生支持 | 默认关闭，需开启               |
+| 慢查询手动 Kill                                 | REST API                                  | ✅ 原生支持 | cancel/close operation |
+| 会话空闲超时回收                                   | `SESSION_IDLE_TIMEOUT`                    | ✅ 原生支持 | 默认 6h                  |
+| **QPS / 并发查询级限流**                          | —                                         | ❌ 缺口   | P1 开发                  |
+| **引擎失败计数熔断器**                              | —                                         | ❌ 缺口   | P1 评估                  |
 
 ## 二、连接级限流（FR-10）
 
@@ -22,14 +22,14 @@ Kyuubi 数据网关的**限流熔断**能力。本期（P0）**全部复用 Kyuu
 
 在 `conf/kyuubi-defaults.conf` 配置：
 
-| 配置键 | 默认值 | 说明 |
-|--------|--------|------|
-| `kyuubi.server.limit.connections.per.user` | 未设置（不限） | 每用户最大连接数，超出拒绝 |
-| `kyuubi.server.limit.connections.per.ipaddress` | 未设置（不限） | 每客户端 IP 最大连接数 |
-| `kyuubi.server.limit.connections.per.user.ipaddress` | 未设置（不限） | 每用户+IP 组合最大连接数 |
-| `kyuubi.server.limit.connections.user.unlimited.list` | 空 | 不受限流的白名单用户 |
-| `kyuubi.server.limit.connections.user.deny.list` | 空 | 拒绝连接的黑名单用户（优先级高于白名单） |
-| `kyuubi.server.limit.connections.ip.deny.list` | 空 | 拒绝连接的黑名单 IP |
+|                          配置键                          |   默认值   |          说明          |
+|-------------------------------------------------------|---------|----------------------|
+| `kyuubi.server.limit.connections.per.user`            | 未设置（不限） | 每用户最大连接数，超出拒绝        |
+| `kyuubi.server.limit.connections.per.ipaddress`       | 未设置（不限） | 每客户端 IP 最大连接数        |
+| `kyuubi.server.limit.connections.per.user.ipaddress`  | 未设置（不限） | 每用户+IP 组合最大连接数       |
+| `kyuubi.server.limit.connections.user.unlimited.list` | 空       | 不受限流的白名单用户           |
+| `kyuubi.server.limit.connections.user.deny.list`      | 空       | 拒绝连接的黑名单用户（优先级高于白名单） |
+| `kyuubi.server.limit.connections.ip.deny.list`        | 空       | 拒绝连接的黑名单 IP          |
 
 > 连接级限流是**计数器**机制：每新建一个 session 计数 +1，关闭 session 计数 -1，超出阈值抛 `KyuubiSQLException` 拒绝连接。
 
@@ -58,6 +58,7 @@ kyuubi.server.limit.connections.ip.deny.list=10.0.0.99
 ### 2.3 触发限流时的错误
 
 客户端会收到明确的错误信息，例如：
+
 ```
 Connection limit per user reached (user: alice limit: 10)
 Connection limit per ipaddress reached (ipaddress: 192.168.1.100 limit: 50)
@@ -71,13 +72,13 @@ Connection denied because the client ip is in the deny ip list. (ipAddress: 10.0
 
 ### 3.1 接口列表
 
-| 接口 | 作用 |
-|------|------|
-| `POST /api/v1/admin/refresh/unlimited_users` | 重新加载白名单用户 |
-| `POST /api/v1/admin/refresh/deny_users` | 重新加载黑名单用户 |
-| `POST /api/v1/admin/refresh/deny_ips` | 重新加载黑名单 IP |
-| `POST /api/v1/admin/refresh/hadoop_conf` | 重新加载 Hadoop 配置 |
-| `POST /api/v1/admin/refresh/user_defaults_conf` | 重新加载用户默认配置 |
+|                       接口                        |       作用       |
+|-------------------------------------------------|----------------|
+| `POST /api/v1/admin/refresh/unlimited_users`    | 重新加载白名单用户      |
+| `POST /api/v1/admin/refresh/deny_users`         | 重新加载黑名单用户      |
+| `POST /api/v1/admin/refresh/deny_ips`           | 重新加载黑名单 IP     |
+| `POST /api/v1/admin/refresh/hadoop_conf`        | 重新加载 Hadoop 配置 |
+| `POST /api/v1/admin/refresh/user_defaults_conf` | 重新加载用户默认配置     |
 
 ### 3.2 示例
 
@@ -98,13 +99,13 @@ curl -X POST http://192.168.206.212:10099/api/v1/admin/refresh/unlimited_users
 
 ### 4.1 查询超时自动取消
 
-| 配置键 | 默认值 | 说明 |
-|--------|--------|------|
-| `kyuubi.operation.query.timeout` | 未设置（关闭） | 服务端查询超时（毫秒），超时自动取消。设置后客户端 `setQueryTimeout` 上限被钳制为此值 |
-| `kyuubi.operation.query.timeout.monitor.enabled` | true（internal） | 服务端是否监控查询超时 |
-| `kyuubi.operation.interrupt.on.cancel` | true | 取消查询时是否中断运行中的任务 |
-| `kyuubi.operation.timeout.pool.size` | 8 | 超时监控线程池大小 |
-| `kyuubi.operation.timeout.pool.keepalive.time` | 60s | 空闲线程存活时间 |
+|                       配置键                        |      默认值       |                          说明                          |
+|--------------------------------------------------|----------------|------------------------------------------------------|
+| `kyuubi.operation.query.timeout`                 | 未设置（关闭）        | 服务端查询超时（毫秒），超时自动取消。设置后客户端 `setQueryTimeout` 上限被钳制为此值 |
+| `kyuubi.operation.query.timeout.monitor.enabled` | true（internal） | 服务端是否监控查询超时                                          |
+| `kyuubi.operation.interrupt.on.cancel`           | true           | 取消查询时是否中断运行中的任务                                      |
+| `kyuubi.operation.timeout.pool.size`             | 8              | 超时监控线程池大小                                            |
+| `kyuubi.operation.timeout.pool.keepalive.time`   | 60s            | 空闲线程存活时间                                             |
 
 配置示例：
 
@@ -146,10 +147,10 @@ curl -X DELETE http://192.168.206.212:10099/api/v1/admin/operations/{operationHa
 
 ### 5.1 引擎启动超时
 
-| 配置键 | 默认值 | 说明 |
-|--------|--------|------|
-| `kyuubi.session.engine.initialize.timeout` | 180s | 引擎启动超时，超时快速失败，不会无限等待 |
-| `kyuubi.engine.submit.timeout` | 30s | 引擎提交后等待 Driver 可见的容忍时间（K8s/YARN） |
+|                    配置键                     | 默认值  |                说明                |
+|--------------------------------------------|------|----------------------------------|
+| `kyuubi.session.engine.initialize.timeout` | 180s | 引擎启动超时，超时快速失败，不会无限等待             |
+| `kyuubi.engine.submit.timeout`             | 30s  | 引擎提交后等待 Driver 可见的容忍时间（K8s/YARN） |
 
 ```properties
 # 引擎启动最多等 3 分钟（默认值，可按需调大）
@@ -160,8 +161,8 @@ kyuubi.session.engine.initialize.timeout=3m
 
 ### 5.2 引擎启动并发限制
 
-| 配置键 | 默认值 | 说明 |
-|--------|--------|------|
+|                 配置键                  |   默认值   |               说明                |
+|--------------------------------------|---------|---------------------------------|
 | `kyuubi.server.limit.engine.startup` | 未设置（不限） | 引擎启动最大并发数（internal，用 Semaphore） |
 
 ```properties
@@ -173,10 +174,10 @@ kyuubi.server.limit.engine.startup=5
 
 ## 六、会话空闲回收
 
-| 配置键 | 默认值 | 说明 |
-|--------|--------|------|
-| `kyuubi.session.idle.timeout` | 6h | session 空闲超时，超时自动关闭 |
-| `kyuubi.session.close.on.disconnect` | true | 客户端断开后是否关闭 session |
+|                 配置键                  | 默认值  |         说明          |
+|--------------------------------------|------|---------------------|
+| `kyuubi.session.idle.timeout`        | 6h   | session 空闲超时，超时自动关闭 |
+| `kyuubi.session.close.on.disconnect` | true | 客户端断开后是否关闭 session  |
 
 ```properties
 # session 空闲 1 小时自动回收（释放连接占用）
@@ -213,13 +214,13 @@ kyuubi.server.admin.users=ops_admin
 
 ## 八、验收自查
 
-| 测试 | 期望 |
-|------|------|
-| 配置 `per.user=2`，同一用户开第 3 个连接 | 第 3 个连接被拒绝，错误含 `Connection limit per user reached` |
-| 把用户加入 `user.deny.list`，调 `refresh/deny_users` | 该用户新连接立即被拒（无需重启） |
-| 配置 `query.timeout=10s`，执行 `SELECT sleep(60)` | 10s 后查询被自动取消 |
-| `GET /api/v1/admin/operations` 找到运行中查询，`PUT cancel` | 查询被取消，审计日志 state 变为 CANCELED |
-| 配置 `engine.startup=1`，同时触发 2 个引擎启动 | 第 2 个排队等待，不并行启动 |
+|                         测试                          |                         期望                         |
+|-----------------------------------------------------|----------------------------------------------------|
+| 配置 `per.user=2`，同一用户开第 3 个连接                        | 第 3 个连接被拒绝，错误含 `Connection limit per user reached` |
+| 把用户加入 `user.deny.list`，调 `refresh/deny_users`       | 该用户新连接立即被拒（无需重启）                                   |
+| 配置 `query.timeout=10s`，执行 `SELECT sleep(60)`        | 10s 后查询被自动取消                                       |
+| `GET /api/v1/admin/operations` 找到运行中查询，`PUT cancel` | 查询被取消，审计日志 state 变为 CANCELED                       |
+| 配置 `engine.startup=1`，同时触发 2 个引擎启动                  | 第 2 个排队等待，不并行启动                                    |
 
 ## 九、已知缺口（P1 待开发）
 
@@ -259,3 +260,4 @@ cat /tmp/kyuubi-server-events/kyuubi_operation/day=20260721/*.json \
 cat /tmp/kyuubi-server-events/kyuubi_operation/day=20260721/*.json \
   | jq 'select(.state=="FINISHED_STATE" and .executionDuration > 300000)'
 ```
+

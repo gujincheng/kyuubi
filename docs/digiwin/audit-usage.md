@@ -18,7 +18,7 @@ kyuubi.backend.server.event.json.log.path=file:///tmp/kyuubi-server-events
 ```
 
 > 审计字段扩展跟随 JSON 事件日志自动生效，**无需单独开关**。只要 `kyuubi.backend.server.event.loggers=JSON` 开启，新字段就会出现在 JSON 日志中。
-
+>
 > 数据源和 SQL 拦截功能也需要开启（否则 datasourceLabel/engineType/sqlBlockedReason 为空）：
 
 ```properties
@@ -48,13 +48,13 @@ ${kyuubi.backend.server.event.json.log.path}/
 
 `KyuubiOperationEvent` 新增 5 个审计字段：
 
-| 字段 | 类型 | 说明 | 来源 |
-|------|------|------|------|
-| `clientIp` | String | 客户端 IP 地址 | Thrift 前端注入 → `AbstractSession.clientIpAddress` |
-| `datasourceLabel` | String | 数据源标签（如 `sr-prod`） | `normalizedConf["kyuubi.datasource"]`；空串=未使用数据源 |
-| `engineType` | String | 引擎类型（如 `jdbc`、`SPARK_SQL`） | label→数据源注册中心取；无 label→`normalizedConf["kyuubi.engine.type"]` |
-| `sqlBlockedReason` | String | SQL 拦截原因 | 空=正常执行；非空=被拦截原因（如 `rule=block-drop(KEYWORD:DROP)`） |
-| `executionDuration` | Long | 执行时长（毫秒） | `completeTime - startTime`；未完成时为 0 |
+|         字段          |   类型   |             说明             |                              来源                               |
+|---------------------|--------|----------------------------|---------------------------------------------------------------|
+| `clientIp`          | String | 客户端 IP 地址                  | Thrift 前端注入 → `AbstractSession.clientIpAddress`               |
+| `datasourceLabel`   | String | 数据源标签（如 `sr-prod`）         | `normalizedConf["kyuubi.datasource"]`；空串=未使用数据源               |
+| `engineType`        | String | 引擎类型（如 `jdbc`、`SPARK_SQL`） | label→数据源注册中心取；无 label→`normalizedConf["kyuubi.engine.type"]` |
+| `sqlBlockedReason`  | String | SQL 拦截原因                   | 空=正常执行；非空=被拦截原因（如 `rule=block-drop(KEYWORD:DROP)`）            |
+| `executionDuration` | Long   | 执行时长（毫秒）                   | `completeTime - startTime`；未完成时为 0                            |
 
 ### 3.1 正常执行事件样例
 
@@ -99,19 +99,19 @@ ${kyuubi.backend.server.event.json.log.path}/
 
 SQL 拦截发生在引擎执行之前，**不会创建 Operation**，因此不会产生 `KyuubiOperationEvent`。拦截信息由独立的 `SqlBlockedEvent` 记录。
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `user` | String | Kyuubi 会话用户 |
-| `clientIp` | String | 客户端 IP |
-| `datasourceLabel` | String | 数据源标签 |
-| `engineType` | String | 引擎类型 |
-| `statement` | String | 被拦截的 SQL |
-| `ruleId` | String | 触发拦截的规则 ID |
-| `ruleName` | String | 规则名称 |
-| `ruleType` | String | 规则类型（KEYWORD/WITHOUT_WHERE/REGEX） |
-| `reason` | String | 详细原因 |
-| `action` | String | 动作（DENY） |
-| `eventTime` | Long | 拦截时间戳 |
+|        字段         |   类型   |                说明                 |
+|-------------------|--------|-----------------------------------|
+| `user`            | String | Kyuubi 会话用户                       |
+| `clientIp`        | String | 客户端 IP                            |
+| `datasourceLabel` | String | 数据源标签                             |
+| `engineType`      | String | 引擎类型                              |
+| `statement`       | String | 被拦截的 SQL                          |
+| `ruleId`          | String | 触发拦截的规则 ID                        |
+| `ruleName`        | String | 规则名称                              |
+| `ruleType`        | String | 规则类型（KEYWORD/WITHOUT_WHERE/REGEX） |
+| `reason`          | String | 详细原因                              |
+| `action`          | String | 动作（DENY）                          |
+| `eventTime`       | Long   | 拦截时间戳                             |
 
 ### 4.1 拦截事件样例
 
@@ -176,13 +176,13 @@ curl http://192.168.206.212:10099/api/v1/operations/{operationHandle}/event
 
 ## 七、验收自查
 
-| 测试 | 期望 |
-|------|------|
+|              测试              |                                               期望                                               |
+|------------------------------|------------------------------------------------------------------------------------------------|
 | 开启 JSON logger，执行 `SELECT 1` | JSON 日志中出现 `clientIp`、`datasourceLabel`、`engineType`、`sqlBlockedReason=""`、`executionDuration` |
-| 执行 `DROP TABLE t`（被拦截） | `sql_blocked/day=.../*.json` 中出现 `SqlBlockedEvent` |
-| 无数据源 label 的操作 | `datasourceLabel=""`、`engineType` 取 `kyuubi.engine.type` |
-| REST API 查询操作事件 | 返回 JSON 包含新增字段 |
-| 慢查询 | `executionDuration` > 0，值 = `completeTime - startTime` |
+| 执行 `DROP TABLE t`（被拦截）       | `sql_blocked/day=.../*.json` 中出现 `SqlBlockedEvent`                                             |
+| 无数据源 label 的操作               | `datasourceLabel=""`、`engineType` 取 `kyuubi.engine.type`                                       |
+| REST API 查询操作事件              | 返回 JSON 包含新增字段                                                                                 |
+| 慢查询                          | `executionDuration` > 0，值 = `completeTime - startTime`                                         |
 
 ## 八、常见问题
 
@@ -191,3 +191,4 @@ curl http://192.168.206.212:10099/api/v1/operations/{operationHandle}/event
 - **拦截事件在哪**：拦截事件写入 `sql_blocked/day=.../*.json`，与操作事件分开存储。
 - **executionDuration 为 0**：操作未完成（`state` 不是终态）时 duration 为 0。
 - **Kafka 输出**：如果配置了 `kyuubi.backend.server.event.loggers=JSON,KAFKA`，新增字段也会自动出现在 Kafka 消息中。
+
