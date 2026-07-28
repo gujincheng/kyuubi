@@ -34,8 +34,13 @@ class DatasourceStoreSuite extends KyuubiFunSuite {
 
   private def sampleDs(label: String = "sr-prod"): DatasourceInfo =
     DatasourceInfo(
-      label, "jdbc", "starrocks", "com.mysql.cj.jdbc.Driver",
-      "jdbc:mysql://sr:9030/db", "u", "enc-pwd",
+      label,
+      "jdbc",
+      "starrocks",
+      "com.mysql.cj.jdbc.Driver",
+      "jdbc:mysql://sr:9030/db",
+      "u",
+      "enc-pwd",
       connectionPoolParams = Map("maximumPoolSize" -> "10"))
 
   test("upsert / get / list / delete") {

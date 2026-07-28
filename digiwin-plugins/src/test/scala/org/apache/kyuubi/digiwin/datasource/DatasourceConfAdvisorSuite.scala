@@ -40,8 +40,13 @@ class DatasourceConfAdvisorSuite extends KyuubiFunSuite {
     DatasourceRegistryHolder.init(reg, conf.get(DIGIWIN_DATASOURCE_LABEL_KEY))
     reg.upsert(
       DatasourceInfo(
-        "sr-prod", "jdbc", "starrocks", "com.mysql.cj.jdbc.Driver",
-        "jdbc:mysql://172.16.101.227:19030", "root", ""),
+        "sr-prod",
+        "jdbc",
+        "starrocks",
+        "com.mysql.cj.jdbc.Driver",
+        "jdbc:mysql://172.16.101.227:19030",
+        "root",
+        ""),
       plainPassword = "DiGiWin@Sr312")
     reg
   }
@@ -78,8 +83,13 @@ class DatasourceConfAdvisorSuite extends KyuubiFunSuite {
     try {
       reg.upsert(
         DatasourceInfo(
-          "sr-pool", "jdbc", "starrocks", "com.mysql.cj.jdbc.Driver",
-          "jdbc:mysql://sr:9030/db", "u", "",
+          "sr-pool",
+          "jdbc",
+          "starrocks",
+          "com.mysql.cj.jdbc.Driver",
+          "jdbc:mysql://sr:9030/db",
+          "u",
+          "",
           connectionPoolParams = Map("maximumPoolSize" -> "5", "connectionTimeout" -> "30000")),
         plainPassword = "pwd")
       val sessionConf = new java.util.HashMap[String, String]()

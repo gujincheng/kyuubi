@@ -54,6 +54,7 @@ kyuubi.session.conf.advisor=org.apache.kyuubi.digiwin.datasource.DatasourceConfA
 
 - Main class:`org.apache.kyuubi.server.KyuubiServer`
 - Environment variables(必填,否则 `kyuubi-defaults.conf` 不加载):
+
   ```
   KYUUBI_HOME=/Users/gujc/code/digiwinCode/kyuubi
   ```
@@ -147,13 +148,13 @@ sqlite3 /tmp/digiwin-datasources.db \
 
 ## 五、验收自查
 
-| 测试 | 命令 | 期望 |
-|------|------|------|
-| 正确 label | `...?kyuubi.datasource=sr-prod` 跑 `SELECT 1` | 返回 `1` |
-| 错误 label | `...?kyuubi.datasource=nonexistent` | 报错 `Datasource label nonexistent not found` |
-| 不传 label | `jdbc:kyuubi://host:10009/`(无 `?`) | 失败(无引擎配置) |
-| 凭据加密 | `sqlite3 ... SELECT encrypted_password` | 密文,无明文 |
-| REST 响应 | `curl GET /datasources` | 不含密码字段 |
+|    测试    |                      命令                      |                     期望                      |
+|----------|----------------------------------------------|---------------------------------------------|
+| 正确 label | `...?kyuubi.datasource=sr-prod` 跑 `SELECT 1` | 返回 `1`                                      |
+| 错误 label | `...?kyuubi.datasource=nonexistent`          | 报错 `Datasource label nonexistent not found` |
+| 不传 label | `jdbc:kyuubi://host:10009/`(无 `?`)           | 失败(无引擎配置)                                   |
+| 凭据加密     | `sqlite3 ... SELECT encrypted_password`      | 密文,无明文                                      |
+| REST 响应  | `curl GET /datasources`                      | 不含密码字段                                      |
 
 四项均符合即 label 代入 + 凭据加密功能验收通过。
 
@@ -185,3 +186,4 @@ KyuubiServer
 - **重启后连接失败**:没配 `kyuubi.digiwin.datasource.credential.secret`(或换了密钥),旧密文解不开。删库重建或恢复密钥。
 - **源码目录里 `bin/kyuubi-beeline` 报 `ClassNotFoundException: KyuubiBeeLine`**:正常,源码树没有 `beeline-jars/`。改用已安装 Kyuubi 客户端的 beeline(见 1.2、第四节)。
 - **错误 label 报 `Datasource label X not found`**:正常,说明 SPI 已接线、label 校验生效。
+

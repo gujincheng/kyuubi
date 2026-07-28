@@ -232,7 +232,8 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
     val sessionConf = session.asInstanceOf[AbstractSession].normalizedConf
     val clientIp = session.asInstanceOf[AbstractSession].clientIpAddress
     val datasourceLabel = sessionConf.getOrElse(
-      session.sessionManager.getConf.get(DIGIWIN_DATASOURCE_LABEL_KEY), "")
+      session.sessionManager.getConf.get(DIGIWIN_DATASOURCE_LABEL_KEY),
+      "")
     val engineType = resolveEngineType(sessionConf, datasourceLabel)
     val sqlBlockedReason = resolveSqlBlockedReason
     val executionDuration =
@@ -261,7 +262,8 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
   }
 
   private def resolveEngineType(
-      sessionConf: Map[String, String], label: String): String = {
+      sessionConf: Map[String, String],
+      label: String): String = {
     if (label.nonEmpty) {
       DatasourceRegistryHolder.registryOpt
         .flatMap(_.get(label).map(_.engineType))

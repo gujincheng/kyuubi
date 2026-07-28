@@ -25,14 +25,7 @@ import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.kyuubi._
 import org.apache.kyuubi.config.KyuubiConf
-import org.apache.kyuubi.config.KyuubiConf.{
-  DIGIWIN_DATASOURCE_LABEL_KEY,
-  DIGIWIN_DATASOURCE_STORE_ENABLED,
-  DIGIWIN_SQL_INSPECTION_ENABLED,
-  FRONTEND_PROTOCOLS,
-  FrontendProtocols,
-  KYUUBI_KUBERNETES_CONF_PREFIX
-}
+import org.apache.kyuubi.config.KyuubiConf.{DIGIWIN_DATASOURCE_LABEL_KEY, DIGIWIN_DATASOURCE_STORE_ENABLED, DIGIWIN_SQL_INSPECTION_ENABLED, FRONTEND_PROTOCOLS, FrontendProtocols, KYUUBI_KUBERNETES_CONF_PREFIX}
 import org.apache.kyuubi.config.KyuubiConf.FrontendProtocols._
 import org.apache.kyuubi.digiwin.datasource.{DatasourceRegistry, DatasourceRegistryHolder}
 import org.apache.kyuubi.digiwin.security.{RuleRegistry, RuleRegistryHolder}

@@ -39,8 +39,13 @@ class DatasourceRegistrySuite extends KyuubiFunSuite {
     val reg = newRegistry()
     reg.start()
     val ds = DatasourceInfo(
-      "sr-prod", "jdbc", "starrocks", "com.mysql.cj.jdbc.Driver",
-      "jdbc:mysql://sr:9030/db", "u", "")
+      "sr-prod",
+      "jdbc",
+      "starrocks",
+      "com.mysql.cj.jdbc.Driver",
+      "jdbc:mysql://sr:9030/db",
+      "u",
+      "")
     reg.upsert(ds, plainPassword = "secret123")
 
     val cached = reg.get("sr-prod").get
@@ -62,8 +67,13 @@ class DatasourceRegistrySuite extends KyuubiFunSuite {
     reg.start()
     reg.upsert(
       DatasourceInfo(
-        "sr-prod", "jdbc", "starrocks", "com.mysql.cj.jdbc.Driver",
-        "jdbc:mysql://sr:9030/db", "u", ""),
+        "sr-prod",
+        "jdbc",
+        "starrocks",
+        "com.mysql.cj.jdbc.Driver",
+        "jdbc:mysql://sr:9030/db",
+        "u",
+        ""),
       plainPassword = "pwd")
     assert(reg.list().map(_.label).contains("sr-prod"))
     reg.refresh()

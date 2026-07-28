@@ -2085,7 +2085,7 @@ class ThriftJdbcEngineStarRocksSuite extends WithKyuubiServer {
 | FR-6  | 结构化审计字段                                                                        | ✅    | Task 4.1/4.2（clientIp/datasourceLabel/rowCount） |
 | FR-7  | 审计落 JSON 文件按时间分区                                                               | ✅    | Task 4.1（partitions 按天，既有 JSON handler）         |
 | FR-8  | 验证 DBeaver 经 JDBC（Thrift Binary）→ JDBC Engine → StarRocks 端到端查询                | ✅    | Task 7.1（Thrift 链路集成验证）                         |
-| FR-9  | DBeaver 看不到 db/表平铺（元数据层级），已由 fde0be6e6（getSchemasOperation）解决；流式异常在 1.11.1 不复现 | ✅    | 已解决（提交 fde0be6e6，无新增代码）；Task 7.1 回归 |
+| FR-9  | DBeaver 看不到 db/表平铺（元数据层级），已由 fde0be6e6（getSchemasOperation）解决；流式异常在 1.11.1 不复现 | ✅    | 已解决（提交 fde0be6e6，无新增代码）；Task 7.1 回归             |
 | FR-10 | 连接级限流复用 SessionLimiter                                                         | ✅    | Task 5.3（既有配置，无新代码）                             |
 | FR-11 | QPS/并发限流 + 慢查询 Kill + 熔断                                                       | ✅    | Task 5.1/5.2（QPS/并发）/5.3（Kill 配置 + 熔断超时）        |
 
