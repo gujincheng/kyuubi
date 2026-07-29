@@ -2127,3 +2127,18 @@ class ThriftJdbcEngineStarRocksSuite extends WithKyuubiServer {
 
 > 注：本计划代码块中个别处含"修正""备选""实现时核对"标注，均为实现首步需就位的既有 API 适配，执行时按标注取最终版。所有新功能均配单元测试；未删除任何既有测试；无硬编码密钥（凭据密钥走配置 `DIGIWIN_DATASOURCE_CREDENTIAL_SECRET`，未配则进程内随机并告警）。Git 提交时机由用户手动决定。
 
+---
+
+## P1 Backlog（执行期追加）
+
+| # | 事项 | 背景与方案 | 记录日期 | 状态 |
+|---|------|-----------|---------|------|
+| P1-1 | **资源档位参数服务端注入**（SessionConfAdvisor 按 subdomain 注入 spark.*） | 生产资源分档（默认 pool / etl 档）目前靠用户在 JDBC URL `?` 段手敲整串 spark.* 参数，已两次踩坑：漏 `spark.kubernetes.executor.limit.cores` 导致 request>limit 拒建 Pod、参数与文档漂移。方案：digiwin-plugins 新增 advisor（结构照抄 `DatasourceConfAdvisor`，同为 SessionConfAdvisor SPI），按 session 的 `kyuubi.engine.share.level.subdomain` 注入对应档位参数（cores/limit.cores/memory/overhead/maxExecutors/driver.memory）；档位定义走服务端配置（新增 ConfigEntry），改档只动 ConfigMap，用户 URL 只需带档名。**注意**：URL 显式传入的参数应优先于注入值（只补未指定的项）；需附单测。 | 2026-07-29 | 待启动 |
+
+既有 P1 项索引（已在本文档他处记录，不重复展开）：
+
+- `rowCount` 精确行数（现默认 -1）——见「偏离与简化」第 5 条。
+- FR-9 大结果集全量物化 OOM 风险（`fetchSize=Integer.MIN_VALUE`、incrementalCollect 评估）——见「风险与回退」。
+- JDBC 引擎元数据补齐 GetCatalogs / GetTypeInfo / GetPrimaryKeys——方案已定暂缓（GetPrimaryKeys 需改 `getPrimaryKeysQuery(catalog,schema,table)` 基类签名）。
+- Kyuubi 用户 → 引擎用户映射（区分真实操作人）——待设计。
+
