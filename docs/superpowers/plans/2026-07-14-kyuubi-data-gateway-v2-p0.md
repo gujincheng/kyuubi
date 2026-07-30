@@ -2134,6 +2134,7 @@ class ThriftJdbcEngineStarRocksSuite extends WithKyuubiServer {
 | # | 事项 | 背景与方案 | 记录日期 | 状态 |
 |---|------|-----------|---------|------|
 | P1-1 | **资源档位参数服务端注入**（SessionConfAdvisor 按 subdomain 注入 spark.*） | 生产资源分档（默认 pool / etl 档）目前靠用户在 JDBC URL `?` 段手敲整串 spark.* 参数，已两次踩坑：漏 `spark.kubernetes.executor.limit.cores` 导致 request>limit 拒建 Pod、参数与文档漂移。方案：digiwin-plugins 新增 advisor（结构照抄 `DatasourceConfAdvisor`，同为 SessionConfAdvisor SPI），按 session 的 `kyuubi.engine.share.level.subdomain` 注入对应档位参数（cores/limit.cores/memory/overhead/maxExecutors/driver.memory）；档位定义走服务端配置（新增 ConfigEntry），改档只动 ConfigMap，用户 URL 只需带档名。**注意**：URL 显式传入的参数应优先于注入值（只补未指定的项）；需附单测。 | 2026-07-29 | 待启动 |
+| P1-2 | **Spark on K8s shuffle 本地方案优化** | 当前临时方案二选一，各有硬伤：① emptyDir——磁盘路径跟 kubelet 根目录走（默认在系统盘 `/var/lib/kubelet`），无法指定独立数据盘，shuffle 一大就威胁系统盘；② hostPath——可指定独立磁盘路径，但任务异常停止（executor 被 kill/OOM/节点故障）后 shuffle 数据无人回收，只能靠定时脚本扫删。优化方向（启动时评估选型）：a) Spark 3.2+ 官方 `spark.kubernetes.local.dirs.tmpfs=false` + PVC 模板（`spark.kubernetes.executor.volumes.persistentVolumeClaim.*`），回收随 PVC 生命周期；b) 远程 shuffle 服务（RSS，如 Celeborn/Uniffle），彻底去掉本地盘依赖，适配动态分配；c) 若短期继续 hostPath，则把"按 spark application ID 目录清理 + 磁盘水位告警"的定时脚本正式化（DaemonSet/CronJob）。与 P1-1 的档位注入联动：shuffle 卷参数也可按档注入（ETL 档 shuffle 量大，需独立大盘）。 | 2026-07-29 | 待启动 |
 
 既有 P1 项索引（已在本文档他处记录，不重复展开）：
 

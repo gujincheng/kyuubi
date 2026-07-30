@@ -57,10 +57,17 @@ data:
     spark.dynamicAllocation.enabled                 true
     spark.shuffle.service.enabled                   false
     spark.dynamicAllocation.shuffleTracking.enabled true
+    # shuffle 数据最多拖住 Executor 300s;默认 infinity,要等 Driver GC 释放引用才回收(可拖 10+ 分钟)
+    spark.dynamicAllocation.shuffleTracking.timeout 300s
     spark.dynamicAllocation.minExecutors            0
     # 默认档(BI/即席):pool 内 2 个引擎共享此默认值,峰值 2×4×2c=16C;ETL 档经 URL ? 段覆盖
     spark.dynamicAllocation.maxExecutors            4
     spark.dynamicAllocation.executorIdleTimeout     60s
+    # shuffle 本地盘:hostPath 落节点数据盘(/mnt/data1 按节点实际数据盘路径调整,改前先在所有节点预建目录并 chmod 777)
+    # 注意:hostPath 不支持 sizeLimit,Pod 删除后数据残留在节点盘上,需定期清理
+    spark.kubernetes.executor.volumes.hostPath.spark-local-dir-1.options.path  /opt/spark_shuffle_data
+    spark.kubernetes.executor.volumes.hostPath.spark-local-dir-1.options.type  DirectoryOrCreate
+    spark.kubernetes.executor.volumes.hostPath.spark-local-dir-1.mount.path    /data/shuffle
     spark.kubernetes.executor.secretKeyRef.AWS_ACCESS_KEY_ID     aws-creds:AWS_ACCESS_KEY_ID
     spark.kubernetes.executor.secretKeyRef.AWS_SECRET_ACCESS_KEY aws-creds:AWS_SECRET_ACCESS_KEY
     spark.sql.extensions                            org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
