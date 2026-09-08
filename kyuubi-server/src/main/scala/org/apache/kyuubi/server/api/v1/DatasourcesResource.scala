@@ -17,7 +17,7 @@
 
 package org.apache.kyuubi.server.api.v1
 
-import javax.ws.rs.{DELETE, GET, Path, PathParam, POST, Produces, PUT}
+import javax.ws.rs.{DELETE, ForbiddenException, GET, Path, PathParam, POST, Produces, PUT}
 import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -29,6 +29,14 @@ import org.apache.kyuubi.server.api.ApiRequestContext
 @Tag(name = "datasources")
 @Path("datasources")
 class DatasourcesResource extends ApiRequestContext {
+
+  private def requireAdministrator(): Unit = {
+    val userName = fe.getSessionUser(Map.empty[String, String])
+    if (!fe.isAdministrator(userName)) {
+      throw new ForbiddenException(
+        s"$userName is not allowed to modify datasource definitions")
+    }
+  }
 
   private def registry: DatasourceRegistry =
     DatasourcesResource.registryOpt.getOrElse(
@@ -48,6 +56,7 @@ class DatasourcesResource extends ApiRequestContext {
   @POST
   @Produces(Array(MediaType.APPLICATION_JSON))
   def create(req: DatasourceRequest): DatasourceView = {
+    requireAdministrator()
     val ds = req.toInfo()
     registry.upsert(ds, req.plainPassword)
     DatasourceView.from(ds)
@@ -57,6 +66,7 @@ class DatasourcesResource extends ApiRequestContext {
   @Path("{label}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def update(@PathParam("label") label: String, req: DatasourceRequest): DatasourceView = {
+    requireAdministrator()
     if (!label.equals(req.label)) {
       throw new KyuubiException(s"Label in path($label) and body(${req.label}) mismatch")
     }
@@ -67,12 +77,16 @@ class DatasourcesResource extends ApiRequestContext {
 
   @DELETE
   @Path("{label}")
-  def delete(@PathParam("label") label: String): Unit = registry.delete(label)
+  def delete(@PathParam("label") label: String): Unit = {
+    requireAdministrator()
+    registry.delete(label)
+  }
 
   @POST
   @Path("refresh")
   @Produces(Array(MediaType.TEXT_PLAIN))
   def refresh(): String = {
+    requireAdministrator()
     registry.refresh()
     "ok"
   }

@@ -19,6 +19,7 @@ import java.sql.{Connection, ResultSet, Statement}
 
 import org.apache.kyuubi.engine.jdbc.mysql.{MySQLSchemaHelper, MySQLTRowSetGenerator}
 import org.apache.kyuubi.engine.jdbc.schema.{JdbcTRowSetGenerator, SchemaHelper}
+import org.apache.kyuubi.operation.meta.ResultSetSchemaConstant._
 
 class MySQLDialect extends JdbcDialect {
   override def createStatement(connection: Connection, fetchSize: Int): Statement = {
@@ -47,6 +48,36 @@ class MySQLDialect extends JdbcDialect {
   private def readDatabase(conn: Connection): String = {
     val c = conn.getCatalog
     if (c != null && c.nonEmpty) c else conn.getSchema
+  }
+
+  /**
+   * MySQL-family databases (MySQL, StarRocks, Doris) treat database as schema, and their JDBC
+   * drivers report no schemas via `DatabaseMetaData.getSchemas`. List databases from
+   * INFORMATION_SCHEMA.SCHEMATA instead so metadata clients (e.g. DBeaver) can browse the
+   * schema layer.
+   *
+   * The catalog argument is intentionally ignored: these databases report a fixed, unusable
+   * catalog (e.g. 'def'), which clients would otherwise use to qualify table references
+   * (e.g. `def.db.table`).
+   */
+  override def getSchemas(conn: Connection, catalog: String, schemaPattern: String): ResultSet = {
+    val statement = conn.prepareStatement(getSchemasQuery(schemaPattern))
+    if (schemaPattern != null && schemaPattern.trim.nonEmpty) {
+      statement.setString(1, schemaPattern)
+    }
+    statement.executeQuery()
+  }
+
+  private[dialect] def getSchemasQuery(schemaPattern: String): String = {
+    val query =
+      s"""
+         |SELECT SCHEMA_NAME AS $TABLE_SCHEM, NULL AS $TABLE_CATALOG
+         |FROM INFORMATION_SCHEMA.SCHEMATA""".stripMargin
+    if (schemaPattern != null && schemaPattern.trim.nonEmpty) {
+      query + " WHERE SCHEMA_NAME LIKE ?"
+    } else {
+      query
+    }
   }
 
   override def getTRowSetGenerator(): JdbcTRowSetGenerator = new MySQLTRowSetGenerator

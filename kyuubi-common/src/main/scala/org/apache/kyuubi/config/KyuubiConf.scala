@@ -4336,7 +4336,8 @@ object KyuubiConf {
       .doc("Whether to inspect and block dangerous SQL at the gateway. " +
         "Rules are managed via the /api/v1/sql-rules REST API and take effect immediately.")
       .version("1.11.2")
-      .serverOnly
+      .audience(SERVER)
+      .immutable
       .booleanConf
       .createWithDefault(false)
 
@@ -4344,7 +4345,8 @@ object KyuubiConf {
     buildConf("kyuubi.digiwin.sql.inspection.whitelist")
       .doc("Users exempted from SQL inspection.")
       .version("1.11.2")
-      .serverOnly
+      .audience(SERVER)
+      .immutable
       .stringConf
       .toSequence()
       .createWithDefault(Nil)

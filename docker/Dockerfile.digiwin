@@ -27,7 +27,7 @@
 #   1. put the mysql driver into the jdbc engine dir first:
 #      wget -P externals/engines/jdbc/ \
 #        https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.4.0/mysql-connector-j-8.4.0.jar
-#   2. docker build -f docker/Dockerfile.digiwin -t kyuubi:1.11.1-digiwin .
+#   2. docker build -f docker/Dockerfile.digiwin -t kyuubi:1.12.0-digiwin .
 
 FROM spark-iceberg:3.5.8
 

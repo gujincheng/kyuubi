@@ -154,29 +154,29 @@ curl -X POST http://192.168.206.212:10099/api/v1/sql-rules/refresh
 
 ## 五、验证拦截(kyuubi-beeline)
 
-用已安装的 Kyuubi 客户端 beeline(以 `/opt/soft/kyuubi-1.11.1` 为例):
+用已安装的 Kyuubi 客户端 beeline(以 `/opt/soft/kyuubi-1.12.0` 为例):
 
 ```bash
 # 应被拦截(DROP)
-/opt/soft/kyuubi-1.11.1/bin/kyuubi-beeline \
+/opt/soft/kyuubi-1.12.0/bin/kyuubi-beeline \
   -u "jdbc:kyuubi://192.168.206.212:10009/?kyuubi.datasource=sr-prod" \
   -n root -p "" -e "DROP TABLE t;"
 # 期望:Error: SQL is blocked by gateway inspection: rule=block-drop(KEYWORD:DROP) (state=SQL_BLOCKED,code=0)
 
 # 应放行(普通查询)
-/opt/soft/kyuubi-1.11.1/bin/kyuubi-beeline \
+/opt/soft/kyuubi-1.12.0/bin/kyuubi-beeline \
   -u "jdbc:kyuubi://192.168.206.212:10009/?kyuubi.datasource=sr-prod" \
   -n root -p "" -e "SELECT 1;"
 # 期望:返回 1
 
 # 应放行(DELETE 带 WHERE)
-/opt/soft/kyuubi-1.11.1/bin/kyuubi-beeline \
+/opt/soft/kyuubi-1.12.0/bin/kyuubi-beeline \
   -u "jdbc:kyuubi://192.168.206.212:10009/?kyuubi.datasource=sr-prod" \
   -n root -p "" -e "DELETE FROM t WHERE id=1;"
 # 期望:不被拦截(走引擎)
 
 # 应被拦(DELETE 无 WHERE)
-/opt/soft/kyuubi-1.11.1/bin/kyuubi-beeline \
+/opt/soft/kyuubi-1.12.0/bin/kyuubi-beeline \
   -u "jdbc:kyuubi://192.168.206.212:10009/?kyuubi.datasource=sr-prod" \
   -n root -p "" -e "DELETE FROM t;"
 # 期望:SQL_BLOCKED
@@ -228,4 +228,3 @@ KyuubiServer.KyuubiBackendService.executeStatement
 - **引擎报 `No suitable driver`**:设 `kyuubi.engine.jdbc.extra.classpath` 指向目标库的 JDBC 驱动 jar。
 - **拦截告警在哪**:服务端日志,搜 `SQL_BLOCKED`(WARN 级别)。
 - **拦截事件是否进审计**:P0 暂未接入结构化审计日志(FR-6/7),目前仅在服务端日志输出;后续审计功能会记录。
-

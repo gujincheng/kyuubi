@@ -41,7 +41,7 @@ kyuubi.session.conf.advisor=org.apache.kyuubi.digiwin.datasource.DatasourceConfA
 - **本地测试**:推荐用**已安装的 Kyuubi 客户端**自带的 beeline(其 `beeline-jars/` 已就位),例如:
 
   ```bash
-  /opt/soft/kyuubi-1.11.1/bin/kyuubi-beeline -u "jdbc:kyuubi://..." ...
+  /opt/soft/kyuubi-1.12.0/bin/kyuubi-beeline -u "jdbc:kyuubi://..." ...
   ```
 
   不要在 Kyuubi **源码树**里建 `beeline-jars/`--源码原本没有这个目录,它只是 `./build/dist` 的构建产物。源码树里手建 `beeline-jars/` 属于临时产物,不要提交 git。
@@ -119,10 +119,10 @@ sqlite3 /tmp/digiwin-datasources.db \
 
 ## 四、通过 kyuubi-beeline 连接(核心用法)
 
-用**已安装的 Kyuubi 客户端**自带的 beeline(本文以 `/opt/soft/kyuubi-1.11.1` 为例,换成你自己的安装路径即可):
+用**已安装的 Kyuubi 客户端**自带的 beeline(本文以 `/opt/soft/kyuubi-1.12.0` 为例,换成你自己的安装路径即可):
 
 ```bash
-/opt/soft/kyuubi-1.11.1/bin/kyuubi-beeline \
+/opt/soft/kyuubi-1.12.0/bin/kyuubi-beeline \
   -u "jdbc:kyuubi://192.168.206.212:10009/?kyuubi.datasource=sr-prod" \
   -n root -p "" \
   -e "SELECT 1;"
@@ -133,12 +133,12 @@ sqlite3 /tmp/digiwin-datasources.db \
 - URL 中 `?kyuubi.datasource=sr-prod` 是 label 代入的触发条件。
 - 网关收到连接后,`DatasourceConfAdvisor` 解析 label,从注册中心取出数据源配置并**解密密码**,注入为引擎连接配置,随后拉起 JDBC 引擎连接 StarRocks。
 - 也可进入交互式:把 `-e "SELECT 1;"` 去掉即可。
-- 注意:beeline 客户端版本要与 server 匹配(都用 1.11.1)。
+- 注意:beeline 客户端版本要与 server 匹配(都用 1.12.0)。
 
 ### 验证查询
 
 ```bash
-/opt/soft/kyuubi-1.11.1/bin/kyuubi-beeline \
+/opt/soft/kyuubi-1.12.0/bin/kyuubi-beeline \
   -u "jdbc:kyuubi://192.168.206.212:10009/?kyuubi.datasource=sr-prod" \
   -n root -p "" \
   -e "SHOW DATABASES;"
@@ -186,4 +186,3 @@ KyuubiServer
 - **重启后连接失败**:没配 `kyuubi.digiwin.datasource.credential.secret`(或换了密钥),旧密文解不开。删库重建或恢复密钥。
 - **源码目录里 `bin/kyuubi-beeline` 报 `ClassNotFoundException: KyuubiBeeLine`**:正常,源码树没有 `beeline-jars/`。改用已安装 Kyuubi 客户端的 beeline(见 1.2、第四节)。
 - **错误 label 报 `Datasource label X not found`**:正常,说明 SPI 已接线、label 校验生效。
-

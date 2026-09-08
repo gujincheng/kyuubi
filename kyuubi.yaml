@@ -112,7 +112,7 @@ spec:
       serviceAccountName: spark-sa      # 复用现有 SA,driver 建 executor 权限已够
       containers:
         - name: kyuubi
-          image: kyuubi:1.11.1-digiwin
+          image: kyuubi:1.12.0-digiwin
           imagePullPolicy: IfNotPresent
           ports:
             - { containerPort: 10009 }

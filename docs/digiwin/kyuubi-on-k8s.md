@@ -1,6 +1,6 @@
 # Kyuubi on Kubernetes 部署指南
 
-本文记录 digiwin 定制版 Kyuubi(分支 `digiwin-1.11.1`,含 digiwin-plugins)在 K8s 上的构建、部署与运维方法。对接集群内 Spark on K8s(3.5.8)+ Iceberg(1.9.0)。
+本文记录 digiwin 定制版 Kyuubi(分支 `digiwin-1.12.0`,含 digiwin-plugins)在 K8s 上的构建、部署与运维方法。对接集群内 Spark on K8s(3.5.8)+ Iceberg(1.9.0)。
 
 相关文件:
 
@@ -44,7 +44,7 @@
 
 |           镜像            |        谁用         |                                                  干什么                                                   |
 |-------------------------|-------------------|--------------------------------------------------------------------------------------------------------|
-| `kyuubi:1.11.1-digiwin` | Kyuubi Pod(1 个)   | 跑 Kyuubi server;server 用镜像内(继承自底座的)`/opt/spark` 执行 spark-submit,driver 以子进程跑在同一 Pod 内                  |
+| `kyuubi:1.12.0-digiwin` | Kyuubi Pod(1 个)   | 跑 Kyuubi server;server 用镜像内(继承自底座的)`/opt/spark` 执行 spark-submit,driver 以子进程跑在同一 Pod 内                  |
 | `spark-iceberg:3.5.8`   | executor Pod(N 个) | driver 向 API server 申请 executor 时,按 `spark-defaults.conf` 中 `spark.kubernetes.container.image` 指定的镜像拉起 |
 
 executor 镜像由该配置项决定,与 Kyuubi 自身镜像无关。理论上可以把 executor 也指向 kyuubi 镜像(它 FROM spark-iceberg,/opt/spark 都在),但不建议:kyuubi 镜像只存在于构建节点,executor 调度到其他节点会 ImagePullBackOff;且职责分离后 Kyuubi 升级重建不影响 executor 侧。
@@ -53,7 +53,7 @@ executor 镜像由该配置项决定,与 Kyuubi 自身镜像无关。理论上�
 
 ```bash
 ./build/dist --tgz --web-ui -Pspark-3.5 -DskipTests -Dspotless.check.skip=true
-# 产物在仓库根目录:apache-kyuubi-1.11.1-bin-spark-3.5.tgz
+# 产物在仓库根目录:apache-kyuubi-1.12.0-bin-spark-3.5.tgz
 ```
 
 ## 二、构建镜像
@@ -61,7 +61,7 @@ executor 镜像由该配置项决定,与 Kyuubi 自身镜像无关。理论上�
 在能访问 `spark-iceberg:3.5.8` 底座镜像的构建机上(当前为 ddp2),解压 tgz 后:
 
 ```bash
-cd apache-kyuubi-1.11.1-bin-spark-3.5
+cd apache-kyuubi-1.12.0-bin-spark-3.5
 
 # 1. mysql 驱动放入 jdbc 引擎目录(随 COPY 进镜像,引擎 classpath 自动加载,
 #    省去 kyuubi.engine.jdbc.extra.classpath 配置)
@@ -69,12 +69,12 @@ wget -P externals/engines/jdbc/ \
   https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.4.0/mysql-connector-j-8.4.0.jar
 
 # 2. 构建
-docker build -f docker/Dockerfile.digiwin -t kyuubi:1.11.1-digiwin .
+docker build -f docker/Dockerfile.digiwin -t kyuubi:1.12.0-digiwin .
 
 # 3. 导入 containerd 的 k8s.io 命名空间(kubelet 只认这里;同名替换先 rm)
-docker save kyuubi:1.11.1-digiwin -o /tmp/kyuubi-1.11.1-digiwin.tar
-ctr -n k8s.io images rm kyuubi:1.11.1-digiwin 2>/dev/null
-ctr -n k8s.io images import /tmp/kyuubi-1.11.1-digiwin.tar
+docker save kyuubi:1.12.0-digiwin -o /tmp/kyuubi-1.12.0-digiwin.tar
+ctr -n k8s.io images rm kyuubi:1.12.0-digiwin 2>/dev/null
+ctr -n k8s.io images import /tmp/kyuubi-1.12.0-digiwin.tar
 crictl images | grep kyuubi
 ```
 
@@ -149,4 +149,3 @@ URL 三段在驱动中的行为:`;` 路径段仅驱动本地用(认证/协议);`
 - `kyuubi.yaml` 中 `kyuubi.digiwin.datasource.credential.secret` 为占位值,生产替换为强随机 16 字节密钥(更换后需重录已注册数据源的凭据)。
 - 多副本 HA:外加 ZooKeeper 并配置 `kyuubi.ha.addresses`,同时去掉 nodeSelector 并分发镜像(或搭 registry)。
 - spark-thrift-server 与 Kyuubi 功能重叠,客户端迁移完成后可退役。
-
