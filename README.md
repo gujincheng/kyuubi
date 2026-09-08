@@ -109,6 +109,23 @@ and others would not be possible without your help.
 
 Ready? [Getting Started](https://kyuubi.readthedocs.io/en/master/quick_start/) with Kyuubi.
 
+## Digiwin 定制版文档索引
+
+当前分支 `digiwin-1.12.0` 的定制功能、部署方式和验收步骤记录在以下文档中：
+
+- [数据源注册、label 代入与凭据加密](./docs/digiwin/datasource-usage.md)
+- [SQL 危险语句拦截与动态规则](./docs/digiwin/sql-inspection-usage.md)
+- [结构化审计日志](./docs/digiwin/audit-usage.md)
+- [连接限流、查询超时与慢查询取消](./docs/digiwin/rate-limit-usage.md)
+- [DBeaver/StarRocks 元数据与 JDBC 集成验收](./docs/superpowers/plans/2026-07-14-kyuubi-data-gateway-v2-p0.md)
+- [Kubernetes 部署与运维](./docs/digiwin/kyuubi-on-k8s.md)
+- [Digiwin 配置项总表](./docs/configuration/settings.md#digiwin)
+- [数据网关 P0 实施计划、设计决策与验收记录](./docs/superpowers/plans/2026-07-14-kyuubi-data-gateway-v2-p0.md)
+- [数据网关总体设计](./docs/superpowers/specs/2026-07-14-kyuubi-data-gateway-v2-design.md)
+- [历史版本变更记录（1.10.2 → 1.11.1）](./CHANGELOG-1.11.md)
+
+新增功能或版本升级时，请同步更新本索引，并在对应功能文档和变更记录中补充配置、验证命令及已知限制。
+
 ## [Contributing](./CONTRIBUTING.md)
 
 ## Project & Community Status
