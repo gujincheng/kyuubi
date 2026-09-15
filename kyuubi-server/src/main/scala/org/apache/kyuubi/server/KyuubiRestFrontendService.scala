@@ -55,9 +55,13 @@ class KyuubiRestFrontendService(override val serverable: Serverable)
 
   private val isStarted = new AtomicBoolean(false)
 
+  private val overviewMetrics = new OverviewMetrics()
+
   private def hadoopConf: Configuration = KyuubiServer.getHadoopConf()
 
   private[kyuubi] def sessionManager = be.sessionManager.asInstanceOf[KyuubiSessionManager]
+
+  private[kyuubi] def getOverviewMetrics: OverviewMetrics = overviewMetrics
 
   private val batchChecker = ThreadUtils.newDaemonSingleThreadScheduledExecutor("batch-checker")
 
@@ -104,6 +108,7 @@ class KyuubiRestFrontendService(override val serverable: Serverable)
       conf.get(FRONTEND_REST_JETTY_STOP_TIMEOUT),
       conf.get(FRONTEND_JETTY_SEND_VERSION_ENABLED))
     batchService.foreach(addService)
+    addService(overviewMetrics)
     super.initialize(conf)
   }
 

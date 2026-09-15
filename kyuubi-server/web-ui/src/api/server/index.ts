@@ -16,13 +16,13 @@
  */
 
 import request from '@/utils/request'
-import { IWebUIConfig } from './types'
+import { IWebUIConfig, ServerData } from './types'
 
-export function getAllServer(): any {
+export function getAllServer(): Promise<ServerData[]> {
   return request({
     url: 'api/v1/admin/server',
     method: 'get'
-  })
+  }) as Promise<ServerData[]>
 }
 
 export function getWebUIConfig(): Promise<IWebUIConfig> {

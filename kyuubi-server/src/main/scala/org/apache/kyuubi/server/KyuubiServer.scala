@@ -33,6 +33,7 @@ import org.apache.kyuubi.events.{EventBus, KyuubiServerInfoEvent, ServerEventHan
 import org.apache.kyuubi.ha.HighAvailabilityConf._
 import org.apache.kyuubi.ha.client.{AuthTypes, ServiceDiscovery}
 import org.apache.kyuubi.metrics.{MetricsConf, MetricsSystem}
+import org.apache.kyuubi.metrics.MetricsConstants.SERVER_START
 import org.apache.kyuubi.server.api.v1.{DatasourcesResource, RulesResource}
 import org.apache.kyuubi.server.metadata.jdbc.JDBCMetadataStoreConf
 import org.apache.kyuubi.service.{AbstractBackendService, AbstractFrontendService, Serverable, ServiceState}
@@ -208,6 +209,7 @@ class KyuubiServer(name: String) extends Serverable(name) {
     }
 
   override def initialize(conf: KyuubiConf): Unit = synchronized {
+    SqlExecutionRecordStore.clear()
     val kinit = new KinitAuxiliaryService()
     addService(kinit)
 
@@ -249,6 +251,7 @@ class KyuubiServer(name: String) extends Serverable(name) {
 
   override def start(): Unit = {
     super.start()
+    MetricsSystem.tracing(_.incCount(SERVER_START))
     KyuubiServer.kyuubiServer = this
     KyuubiServerInfoEvent(this, ServiceState.STARTED).foreach(EventBus.post)
   }

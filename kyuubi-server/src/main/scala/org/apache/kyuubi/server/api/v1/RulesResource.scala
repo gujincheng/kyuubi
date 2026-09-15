@@ -17,26 +17,19 @@
 
 package org.apache.kyuubi.server.api.v1
 
-import javax.ws.rs.{DELETE, ForbiddenException, GET, Path, PathParam, POST, Produces, PUT}
+import javax.ws.rs.{DELETE, GET, Path, PathParam, POST, Produces, PUT}
 import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.tags.Tag
 
 import org.apache.kyuubi.KyuubiException
 import org.apache.kyuubi.digiwin.security.{RuleRegistry, SqlRule}
+import org.apache.kyuubi.server.{AdminPermissionService, AdminRole}
 import org.apache.kyuubi.server.api.ApiRequestContext
 
 @Tag(name = "sql-rules")
 @Path("sql-rules")
 class RulesResource extends ApiRequestContext {
-
-  private def requireAdministrator(): Unit = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to modify SQL inspection rules")
-    }
-  }
 
   private def registry: RuleRegistry =
     RulesResource.registryOpt.getOrElse(
@@ -44,18 +37,23 @@ class RulesResource extends ApiRequestContext {
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def list(): Seq[SqlRule] = registry.list()
+  def list(): Seq[SqlRule] = {
+    AdminPermissionService.require(fe, "sql-rule", AdminRole.Read)
+    registry.list()
+  }
 
   @GET
   @Path("{id}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def get(@PathParam("id") id: String): SqlRule =
+  def get(@PathParam("id") id: String): SqlRule = {
+    AdminPermissionService.require(fe, "sql-rule", AdminRole.Read)
     registry.get(id).getOrElse(throw new KyuubiException(s"SQL rule $id not found"))
+  }
 
   @POST
   @Produces(Array(MediaType.APPLICATION_JSON))
   def create(req: SqlRule): SqlRule = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "sql-rule", AdminRole.Write)
     registry.upsert(req)
     req
   }
@@ -64,7 +62,7 @@ class RulesResource extends ApiRequestContext {
   @Path("{id}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def update(@PathParam("id") id: String, req: SqlRule): SqlRule = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "sql-rule", AdminRole.Write)
     if (!id.equals(req.id)) {
       throw new KyuubiException(s"Rule id in path($id) and body(${req.id}) mismatch")
     }
@@ -75,7 +73,7 @@ class RulesResource extends ApiRequestContext {
   @DELETE
   @Path("{id}")
   def delete(@PathParam("id") id: String): Unit = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "sql-rule", AdminRole.Delete)
     registry.delete(id)
   }
 
@@ -83,7 +81,7 @@ class RulesResource extends ApiRequestContext {
   @Path("refresh")
   @Produces(Array(MediaType.TEXT_PLAIN))
   def refresh(): String = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "sql-rule", AdminRole.Refresh)
     registry.refresh()
     "ok"
   }

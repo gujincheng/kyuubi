@@ -66,4 +66,11 @@ object FileSessionConfAdvisor extends Logging {
           }
         }
       })
+
+  /** Invalidate a profile after an administrator replaces its backing file. */
+  def invalidate(profile: String): Unit = {
+    if (profile != null && profile.nonEmpty) {
+      sessionConfCache.invalidate(profile)
+    }
+  }
 }

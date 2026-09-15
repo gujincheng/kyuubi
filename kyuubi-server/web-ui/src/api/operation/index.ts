@@ -17,12 +17,38 @@
 
 import request from '@/utils/request'
 
-export function getAllOperations() {
+interface OperationData {
+  identifier: string
+  remoteId?: string
+  statement?: string
+  state: string
+  createTime?: number
+  startTime?: number
+  completeTime?: number
+  exception?: string
+  sessionId?: string
+  sessionUser?: string
+  sessionType?: string
+  kyuubiInstance?: string
+  metrics?: Record<string, string>
+  progress?: { progress?: number; message?: string }
+}
+
+interface OperationSearchParams {
+  users?: string
+  sessionHandle?: string
+  sessionType?: string
+}
+
+export function getAllOperations(params: OperationSearchParams = {}) {
   return request({
     url: 'api/v1/admin/operations',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
+
+export type { OperationData, OperationSearchParams }
 
 export function actionOnOperation(
   operationId: string,

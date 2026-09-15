@@ -72,8 +72,16 @@ async function request(config: RequestConfig): Promise<unknown> {
   const contentType = response.headers.get('content-type') || ''
   const isJson = contentType.includes('application/json')
   const rawText = await response.text()
-  const parsedBody =
-    isJson && rawText ? JSON.parse(rawText) : rawText || undefined
+  let parsedBody: unknown = rawText || undefined
+  if (isJson && rawText) {
+    try {
+      parsedBody = JSON.parse(rawText)
+    } catch {
+      // Some legacy endpoints advertise JSON but return a plain-text success message.
+      // Keep the response usable instead of failing the completed request in the client.
+      parsedBody = rawText
+    }
+  }
 
   if (!response.ok) {
     const messageFromJson =

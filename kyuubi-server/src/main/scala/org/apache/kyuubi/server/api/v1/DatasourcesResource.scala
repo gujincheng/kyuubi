@@ -17,26 +17,19 @@
 
 package org.apache.kyuubi.server.api.v1
 
-import javax.ws.rs.{DELETE, ForbiddenException, GET, Path, PathParam, POST, Produces, PUT}
+import javax.ws.rs.{DELETE, GET, Path, PathParam, POST, Produces, PUT}
 import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.tags.Tag
 
 import org.apache.kyuubi.KyuubiException
 import org.apache.kyuubi.digiwin.datasource.{DatasourceInfo, DatasourceRegistry}
+import org.apache.kyuubi.server.{AdminPermissionService, AdminRole}
 import org.apache.kyuubi.server.api.ApiRequestContext
 
 @Tag(name = "datasources")
 @Path("datasources")
 class DatasourcesResource extends ApiRequestContext {
-
-  private def requireAdministrator(): Unit = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to modify datasource definitions")
-    }
-  }
 
   private def registry: DatasourceRegistry =
     DatasourcesResource.registryOpt.getOrElse(
@@ -44,19 +37,24 @@ class DatasourcesResource extends ApiRequestContext {
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def list(): Seq[DatasourceView] = registry.list().map(DatasourceView.from)
+  def list(): Seq[DatasourceView] = {
+    AdminPermissionService.require(fe, "datasource", AdminRole.Read)
+    registry.list().map(DatasourceView.from)
+  }
 
   @GET
   @Path("{label}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def get(@PathParam("label") label: String): DatasourceView =
+  def get(@PathParam("label") label: String): DatasourceView = {
+    AdminPermissionService.require(fe, "datasource", AdminRole.Read)
     registry.get(label).map(DatasourceView.from)
       .getOrElse(throw new KyuubiException(s"Datasource $label not found"))
+  }
 
   @POST
   @Produces(Array(MediaType.APPLICATION_JSON))
   def create(req: DatasourceRequest): DatasourceView = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "datasource", AdminRole.Write)
     val ds = req.toInfo()
     registry.upsert(ds, req.plainPassword)
     DatasourceView.from(ds)
@@ -66,7 +64,7 @@ class DatasourcesResource extends ApiRequestContext {
   @Path("{label}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def update(@PathParam("label") label: String, req: DatasourceRequest): DatasourceView = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "datasource", AdminRole.Write)
     if (!label.equals(req.label)) {
       throw new KyuubiException(s"Label in path($label) and body(${req.label}) mismatch")
     }
@@ -78,7 +76,7 @@ class DatasourcesResource extends ApiRequestContext {
   @DELETE
   @Path("{label}")
   def delete(@PathParam("label") label: String): Unit = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "datasource", AdminRole.Delete)
     registry.delete(label)
   }
 
@@ -86,7 +84,7 @@ class DatasourcesResource extends ApiRequestContext {
   @Path("refresh")
   @Produces(Array(MediaType.TEXT_PLAIN))
   def refresh(): String = {
-    requireAdministrator()
+    AdminPermissionService.require(fe, "datasource", AdminRole.Refresh)
     registry.refresh()
     "ok"
   }

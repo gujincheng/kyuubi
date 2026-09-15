@@ -45,6 +45,7 @@ import org.apache.kyuubi.config.KyuubiReservedKeys._
 import org.apache.kyuubi.engine._
 import org.apache.kyuubi.operation.{BatchJobSubmission, FetchOrientation, OperationState}
 import org.apache.kyuubi.server.api.ApiRequestContext
+import org.apache.kyuubi.server.{AdminPermissionService, AdminRole}
 import org.apache.kyuubi.server.api.v1.BatchesResource._
 import org.apache.kyuubi.server.metadata.MetadataManager
 import org.apache.kyuubi.server.metadata.api.{Metadata, MetadataFilter}
@@ -586,14 +587,11 @@ private[v1] class BatchesResource extends ApiRequestContext with Logging {
   @Path("/reassign")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def reassignBatchSessions(request: ReassignBatchRequest): ReassignBatchResponse = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "batch", AdminRole.Control)
     val ipAddress = fe.getIpAddress
     val kyuubiInstance = request.getKyuubiInstance
     val newKyuubiInstance = fe.connectionUrl
     info(s"Received reassign $kyuubiInstance batch sessions request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(s"$userName is not allowed to reassign the batches")
-    }
     if (kyuubiInstance == newKyuubiInstance) {
       throw new IllegalStateException(s"KyuubiInstance is alive: $kyuubiInstance")
     }

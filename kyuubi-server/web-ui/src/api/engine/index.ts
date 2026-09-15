@@ -16,17 +16,17 @@
  */
 
 import request from '@/utils/request'
-import { IEngineSearch } from './types'
+import { EngineData, IEngineSearch } from './types'
 
-export function getAllEngines(params: IEngineSearch) {
+export function getAllEngines(params: IEngineSearch): Promise<EngineData[]> {
   return request({
     url: 'api/v1/admin/engine',
     method: 'get',
     params
-  })
+  }) as Promise<EngineData[]>
 }
 
-export function deleteEngine(params: IEngineSearch) {
+export function deleteEngine(params: IEngineSearch & { kill?: boolean }) {
   return request({
     url: 'api/v1/admin/engine',
     method: 'delete',

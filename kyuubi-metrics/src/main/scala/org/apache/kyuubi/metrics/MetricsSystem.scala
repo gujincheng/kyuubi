@@ -20,6 +20,8 @@ package org.apache.kyuubi.metrics
 import java.lang.management.ManagementFactory
 import java.util.concurrent.TimeUnit
 
+import scala.collection.JavaConverters._
+
 import com.codahale.metrics.{Gauge, MetricRegistry, Snapshot}
 import com.codahale.metrics.jvm._
 
@@ -131,5 +133,21 @@ object MetricsSystem {
 
   def histogramSnapshot(name: String): Option[Snapshot] = {
     maybeSystem.map(_.registry.histogram(name).getSnapshot)
+  }
+
+  def timerSnapshot(name: String): Option[Snapshot] = {
+    maybeSystem.map(_.registry.timer(name).getSnapshot)
+  }
+
+  def gaugeValues(prefix: String): Map[String, Any] = {
+    maybeSystem.toSeq.flatMap { metricsSystem =>
+      metricsSystem.registry.getGauges.asScala.collect {
+        case (name, gauge) if name.startsWith(prefix) => name -> gauge.getValue
+      }
+    }.toMap
+  }
+
+  def gaugeValue(name: String): Option[Any] = {
+    maybeSystem.flatMap(_.getGauge(name).map(_.getValue))
   }
 }

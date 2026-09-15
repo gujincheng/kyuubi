@@ -27,6 +27,26 @@ const router = [
     component: () => import('@/views/management/server/index.vue')
   },
   {
+    path: '/management/policy',
+    name: 'policy',
+    component: () => import('@/views/management/policy/index.vue')
+  },
+  {
+    path: '/management/configuration',
+    name: 'configuration',
+    component: () => import('@/views/management/configuration/index.vue')
+  },
+  {
+    path: '/management/audit',
+    name: 'audit',
+    component: () => import('@/views/management/audit/index.vue')
+  },
+  {
+    path: '/management/permissions',
+    name: 'permissions',
+    component: () => import('@/views/management/permissions/index.vue')
+  },
+  {
     path: '/management/session',
     name: 'session',
     component: () => import('@/views/management/session/index.vue')
@@ -35,6 +55,11 @@ const router = [
     path: '/management/operation',
     name: 'operation',
     component: () => import('@/views/management/operation/index.vue')
+  },
+  {
+    path: '/management/sql-record',
+    name: 'sqlRecord',
+    component: () => import('@/views/management/sql-record/index.vue')
   },
   {
     path: '/management/batch',

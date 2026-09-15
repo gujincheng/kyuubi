@@ -34,6 +34,10 @@ export const MENUS = [
         router: '/management/operation'
       },
       {
+        label: 'SQL Record',
+        router: '/management/sql-record'
+      },
+      {
         label: 'Batch',
         router: '/management/batch'
       },
@@ -44,6 +48,22 @@ export const MENUS = [
       {
         label: 'Server',
         router: '/management/server'
+      },
+      {
+        label: 'Policy',
+        router: '/management/policy'
+      },
+      {
+        label: 'System Setting',
+        router: '/management/configuration'
+      },
+      {
+        label: 'Audit Log',
+        router: '/management/audit'
+      },
+      {
+        label: 'Permissions',
+        router: '/management/permissions'
       }
     ]
   },
