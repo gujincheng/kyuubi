@@ -17,8 +17,8 @@
 
 package org.apache.kyuubi.server
 
-import org.apache.kyuubi.Utils
 import org.apache.kyuubi.KyuubiFunSuite
+import org.apache.kyuubi.Utils
 
 class AdminPermissionStoreSuite extends KyuubiFunSuite {
 
@@ -41,7 +41,7 @@ class AdminPermissionStoreSuite extends KyuubiFunSuite {
   test("persists and reloads user role assignments") {
     val assignments = Seq(
       PermissionAssignment("alice", AdminRole.ViewerName),
-      PermissionAssignment("bob", AdminRole.OperatorName))
+      PermissionAssignment("bob", AdminRole.PlatformAdminName))
 
     AdminPermissionStore.replace(assignments)
 
@@ -53,17 +53,21 @@ class AdminPermissionStoreSuite extends KyuubiFunSuite {
     intercept[IllegalArgumentException] {
       AdminPermissionStore.replace(Seq(
         PermissionAssignment("alice", AdminRole.ViewerName),
-        PermissionAssignment("alice", AdminRole.OperatorName)))
+        PermissionAssignment("alice", AdminRole.PlatformAdminName)))
     }
     intercept[IllegalArgumentException] {
-      AdminPermissionStore.replace(Seq(PermissionAssignment("alice", "unknown")))
+      AdminPermissionStore.replace(Seq(PermissionAssignment("alice", "operator")))
+    }
+    intercept[IllegalArgumentException] {
+      AdminPermissionStore.replace(Seq(PermissionAssignment("alice", "policy-admin")))
     }
   }
 
-  test("role matrix separates read and control permissions") {
+  test("exposes only viewer and platform administrator roles") {
+    assert(AdminRole.all.map(_.name) === Seq(
+      AdminRole.ViewerName,
+      AdminRole.PlatformAdminName))
     assert(AdminRole.Viewer.permissions("session") === Set(AdminRole.Read))
-    assert(AdminRole.Operator.permissions("session") === Set(AdminRole.Read, AdminRole.Control))
-    assert(AdminRole.PolicyAdmin.permissions("policy").contains(AdminRole.Write))
     assert(AdminRole.PlatformAdmin.permissions("permissions").contains(AdminRole.Manage))
   }
 }

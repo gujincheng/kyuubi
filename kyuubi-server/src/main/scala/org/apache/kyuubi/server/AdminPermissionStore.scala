@@ -31,7 +31,7 @@ private[server] case class PermissionAssignment(user: String, role: String)
 
 private[server] case class PermissionFile(assignments: Seq[PermissionAssignment])
 
-private[server] sealed abstract class AdminRole(
+sealed abstract private[server] class AdminRole(
     val name: String,
     val label: String,
     val description: String,
@@ -39,8 +39,6 @@ private[server] sealed abstract class AdminRole(
 
 private[server] object AdminRole {
   val ViewerName = "viewer"
-  val OperatorName = "operator"
-  val PolicyAdminName = "policy-admin"
   val PlatformAdminName = "platform-admin"
 
   val Read = "read"
@@ -63,49 +61,27 @@ private[server] object AdminRole {
     "audit",
     "datasource",
     "sql-rule",
+    "access",
     "permissions")
 
   private val readOnly = Resources.map(_ -> Set(Read)).toMap
-
-  private val operatorPermissions = readOnly ++ Map(
-    "session" -> Set(Read, Control),
-    "operation" -> Set(Read, Control),
-    "engine" -> Set(Read, Control, Delete),
-    "server" -> Set(Read),
-    "batch" -> Set(Read, Control))
-
-  private val policyAdminPermissions = readOnly ++ Map(
-    "policy" -> Set(Read, Write, Delete, Refresh),
-    "configuration" -> Set(Read, Refresh))
 
   private val platformPermissions = Resources.map(_ ->
     Set(Read, Write, Control, Delete, Refresh, Manage)).toMap
 
   case object Viewer extends AdminRole(
-    ViewerName,
-    "只读管理员",
-    "可以查看管理数据，但不能改变运行状态",
-    readOnly)
-
-  case object Operator extends AdminRole(
-    OperatorName,
-    "运维管理员",
-    "可以查看并控制会话、操作和引擎",
-    operatorPermissions)
-
-  case object PolicyAdmin extends AdminRole(
-    PolicyAdminName,
-    "策略管理员",
-    "可以维护用户配置、Session Profile 和访问策略",
-    policyAdminPermissions)
+      ViewerName,
+      "只读管理员",
+      "可以查看管理数据，但不能改变运行状态",
+      readOnly)
 
   case object PlatformAdmin extends AdminRole(
-    PlatformAdminName,
-    "平台管理员",
-    "拥有所有管理资源和操作权限",
-    platformPermissions)
+      PlatformAdminName,
+      "平台管理员",
+      "拥有所有管理资源和操作权限",
+      platformPermissions)
 
-  val all: Seq[AdminRole] = Seq(Viewer, Operator, PolicyAdmin, PlatformAdmin)
+  val all: Seq[AdminRole] = Seq(Viewer, PlatformAdmin)
 
   def fromName(name: String): Option[AdminRole] = all.find(_.name == name)
 }

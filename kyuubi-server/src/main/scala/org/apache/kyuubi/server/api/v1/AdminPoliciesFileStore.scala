@@ -24,19 +24,25 @@ import java.nio.file.{AtomicMoveNotSupportedException, Files, StandardCopyOption
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.kyuubi.config.KyuubiConf.{
-  SERVER_LIMIT_CONNECTIONS_IP_DENY_LIST,
-  SERVER_LIMIT_CONNECTIONS_USER_DENY_LIST,
-  SERVER_LIMIT_CONNECTIONS_USER_UNLIMITED_LIST,
-  USER_DEFAULTS_CONF_QUOTE}
+import org.apache.kyuubi.Utils
+import org.apache.kyuubi.config.KyuubiConf.{KYUUBI_CONF_FILE_NAME, SERVER_LIMIT_CONNECTIONS_IP_DENY_LIST, SERVER_LIMIT_CONNECTIONS_USER_DENY_LIST, SERVER_LIMIT_CONNECTIONS_USER_UNLIMITED_LIST, USER_DEFAULTS_CONF_QUOTE}
 
 private[v1] case class PolicyFileException(message: String, status: Int)
-    extends RuntimeException(message)
+  extends RuntimeException(message)
 
 /** File-backed policy updates with atomic replacement of each target file. */
 private[v1] object AdminPoliciesFileStore {
 
   private val ProfilePrefix = "kyuubi-session-"
+  private var testConfigurationFile: Option[File] = None
+
+  def configurationFile: Option[File] = synchronized {
+    testConfigurationFile.orElse(Utils.getPropertiesFile(KYUUBI_CONF_FILE_NAME))
+  }
+
+  private[v1] def setConfigurationFileForTesting(file: Option[File]): Unit = synchronized {
+    testConfigurationFile = file
+  }
 
   def validateAccess(access: AccessPolicies): Unit = {
     validateValues(access.unlimitedUsers, "unlimitedUsers")
@@ -97,6 +103,14 @@ private[v1] object AdminPoliciesFileStore {
       }
       writeAtomically(profileFile, lines)
     }
+  }
+
+  def updateProperties(configFile: File, replacements: Map[String, String]): Unit = {
+    replacements.foreach { case (key, value) =>
+      validateToken(key, "configuration key")
+      validateValue(value, s"configuration value for $key")
+    }
+    rewriteProperties(writableFile(configFile), replacements)
   }
 
   private def writableFile(file: File): File = {
@@ -209,7 +223,9 @@ private[v1] object AdminPoliciesFileStore {
     val directory = file.getParentFile.toPath
     val temporary = Files.createTempFile(directory, s".${file.getName}.", ".tmp")
     try {
-      Files.write(temporary, lines.mkString(System.lineSeparator()).getBytes(StandardCharsets.UTF_8))
+      Files.write(
+        temporary,
+        lines.mkString(System.lineSeparator()).getBytes(StandardCharsets.UTF_8))
       try {
         Files.move(
           temporary,

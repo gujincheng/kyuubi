@@ -86,6 +86,9 @@ private[v1] class ApiRootResource extends ApiRequestContext {
   @Path("admin/permissions")
   def adminPermissions: Class[AdminPermissionsResource] = classOf[AdminPermissionsResource]
 
+  @Path("admin/access")
+  def adminAccess: Class[AdminAccessResource] = classOf[AdminAccessResource]
+
   @Path("data-agent")
   def dataAgent: Class[DataAgentResource] = classOf[DataAgentResource]
 

@@ -27,9 +27,13 @@ const router = [
     component: () => import('@/views/management/server/index.vue')
   },
   {
+    path: '/management/access',
+    name: 'access',
+    component: () => import('@/views/management/access/index.vue')
+  },
+  {
     path: '/management/policy',
-    name: 'policy',
-    component: () => import('@/views/management/policy/index.vue')
+    redirect: { path: '/management/access', query: { tab: 'profiles' } }
   },
   {
     path: '/management/configuration',
@@ -43,8 +47,7 @@ const router = [
   },
   {
     path: '/management/permissions',
-    name: 'permissions',
-    component: () => import('@/views/management/permissions/index.vue')
+    redirect: { path: '/management/access', query: { tab: 'roles' } }
   },
   {
     path: '/management/session',

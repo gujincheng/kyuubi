@@ -50,8 +50,8 @@ export const MENUS = [
         router: '/management/server'
       },
       {
-        label: 'Policy',
-        router: '/management/policy'
+        label: 'Access Management',
+        router: '/management/access'
       },
       {
         label: 'System Setting',
@@ -60,10 +60,6 @@ export const MENUS = [
       {
         label: 'Audit Log',
         router: '/management/audit'
-      },
-      {
-        label: 'Permissions',
-        router: '/management/permissions'
       }
     ]
   },
