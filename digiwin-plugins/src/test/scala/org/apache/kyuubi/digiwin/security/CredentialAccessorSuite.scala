@@ -45,4 +45,16 @@ class CredentialAccessorSuite extends KyuubiFunSuite {
     val enc = accessor.encrypt("hello")
     assert(accessor.decrypt(enc) === "hello")
   }
+
+  test("apply resolves an environment-backed secret") {
+    val accessor = CredentialAccessor(Some("env:KYUUBI_TEST_SECRET"))
+    val enc = accessor.encrypt("hello")
+    assert(accessor.decrypt(enc) === "hello")
+  }
+
+  test("apply rejects an unset environment-backed secret") {
+    intercept[IllegalArgumentException] {
+      CredentialAccessor(Some("env:KYUUBI_TEST_MISSING_CREDENTIAL_SECRET_9f7c"))
+    }
+  }
 }

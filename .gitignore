@@ -80,7 +80,13 @@ embedded_zookeeper/
 conf/log4j2.xml
 conf/kyuubi-defaults.conf
 conf/kyuubi-env.sh
+conf/kyuubi-audit-config.json
+conf/kyuubi-admin-permissions.json
+conf/kyuubi-identity-access.json
 .java-version
+
+# For pnpm package cache
+.pnpm-store/
 
 # For Antlr
 kyuubi-server/gen

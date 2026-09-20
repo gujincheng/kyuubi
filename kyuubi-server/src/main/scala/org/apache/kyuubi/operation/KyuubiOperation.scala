@@ -81,8 +81,11 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
           warn(s"Ignore exception in terminal state with $statementId", e)
         } else {
           val errorType = e.getClass.getSimpleName
-          MetricsSystem.tracing(_.incCount(
-            MetricRegistry.name(OPERATION_FAIL, opType, errorType)))
+          MetricsSystem.tracing { ms =>
+            ms.incCount(OPERATION_FAIL)
+            ms.incCount(MetricRegistry.name(OPERATION_FAIL, opType))
+            ms.incCount(MetricRegistry.name(OPERATION_FAIL, opType, errorType))
+          }
           val ke = e match {
             case kse: KyuubiSQLException => kse
             case te: TTransportException
@@ -229,12 +232,16 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
 
   def getOperationEvent: KyuubiOperationEvent = {
     val kyuubiSession = session.asInstanceOf[KyuubiSession]
+    val kyuubiSessionImpl = session.asInstanceOf[KyuubiSessionImpl]
     val sessionConf = session.asInstanceOf[AbstractSession].normalizedConf
     val clientIp = session.asInstanceOf[AbstractSession].clientIpAddress
     val datasourceLabel = sessionConf.getOrElse(
       session.sessionManager.getConf.get(DIGIWIN_DATASOURCE_LABEL_KEY),
       "")
-    val engineType = resolveEngineType(sessionConf, datasourceLabel)
+    val engineType = KyuubiOperation.resolveEngineType(
+      sessionConf,
+      datasourceLabel,
+      kyuubiSessionImpl.effectiveEngineType)
     val sqlBlockedReason = resolveSqlBlockedReason
     val executionDuration =
       if (completedTime > 0L && startTime > 0L) completedTime - startTime else 0L
@@ -261,23 +268,33 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
       sqlBlockedReason)
   }
 
-  private def resolveEngineType(
-      sessionConf: Map[String, String],
-      label: String): String = {
-    if (label.nonEmpty) {
-      DatasourceRegistryHolder.registryOpt
-        .flatMap(_.get(label).map(_.engineType))
-        .getOrElse("")
-    } else {
-      sessionConf.getOrElse("kyuubi.engine.type", "")
-    }
-  }
-
   private def resolveSqlBlockedReason: String = {
     Option(operationException)
       .filter(_.isInstanceOf[KyuubiSQLException])
       .map(_.asInstanceOf[KyuubiSQLException])
       .filter(e => e.getSQLState != null && e.getSQLState == "SQL_BLOCKED")
       .map(_.getMessage).getOrElse("")
+  }
+}
+
+private[kyuubi] object KyuubiOperation {
+
+  def resolveEngineType(
+      sessionConf: Map[String, String],
+      label: String,
+      effectiveEngineType: String): String = {
+    val fallbackEngineType = if (effectiveEngineType.nonEmpty) {
+      effectiveEngineType
+    } else {
+      sessionConf.getOrElse(ENGINE_TYPE.key, "")
+    }
+    if (label.nonEmpty) {
+      DatasourceRegistryHolder.registryOpt
+        .flatMap(_.get(label).map(_.engineType))
+        .filter(_.nonEmpty)
+        .getOrElse(fallbackEngineType)
+    } else {
+      fallbackEngineType
+    }
   }
 }

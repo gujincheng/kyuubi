@@ -61,6 +61,8 @@ object MetricsConstants {
   final val ENGINE_TIMEOUT: String = ENGINE + "timeout"
   final val ENGINE_TOTAL: String = ENGINE + "total"
 
+  final val SERVER_START: String = KYUUBI + "server.started"
+
   final private val ENGINE_STARTUP_PERMIT: String = ENGINE + "startup.permit."
   final val ENGINE_STARTUP_PERMIT_LIMIT: String = ENGINE_STARTUP_PERMIT + "limit"
   final val ENGINE_STARTUP_PERMIT_AVAILABLE: String = ENGINE_STARTUP_PERMIT + "available"

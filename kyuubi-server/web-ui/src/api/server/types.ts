@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-interface IServer {
+interface ServerData {
   attributes: any | null
   host: string
   instance: string
@@ -29,4 +29,4 @@ interface IWebUIConfig {
   engineUIProxyEnabled: boolean
 }
 
-export { IServer, IWebUIConfig }
+export { ServerData, IWebUIConfig }

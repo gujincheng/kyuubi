@@ -38,7 +38,7 @@ import org.apache.kyuubi.ha.HighAvailabilityConf.HA_NAMESPACE
 import org.apache.kyuubi.ha.client.{DiscoveryPaths, ServiceNodeInfo}
 import org.apache.kyuubi.ha.client.DiscoveryClientProvider.withDiscoveryClient
 import org.apache.kyuubi.operation.{KyuubiOperation, OperationHandle}
-import org.apache.kyuubi.server.KyuubiServer
+import org.apache.kyuubi.server.{AdminPermissionService, AdminRole, KyuubiServer}
 import org.apache.kyuubi.server.api.{ApiRequestContext, ApiUtils}
 import org.apache.kyuubi.session.{KyuubiSession, KyuubiSessionManager, SessionHandle}
 
@@ -54,13 +54,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @POST
   @Path("refresh/hadoop_conf")
   def refreshFrontendHadoopConf(): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "configuration", AdminRole.Refresh)
     val ipAddress = fe.getIpAddress
     info(s"Receive refresh Kyuubi server hadoop conf request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to refresh the Kyuubi server hadoop conf")
-    }
     info(s"Reloading the Kyuubi server hadoop conf")
     KyuubiServer.reloadHadoopConf()
     Response.ok(s"Refresh the hadoop conf for ${fe.connectionUrl} successfully.").build()
@@ -73,13 +69,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @POST
   @Path("refresh/user_defaults_conf")
   def refreshUserDefaultsConf(): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "policy", AdminRole.Refresh)
     val ipAddress = fe.getIpAddress
     info(s"Receive refresh user defaults conf request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to refresh the user defaults conf")
-    }
     info(s"Reloading user defaults conf")
     KyuubiServer.refreshUserDefaultsConf()
     Response.ok(s"Refresh the user defaults conf successfully.").build()
@@ -92,13 +84,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @POST
   @Path("refresh/kubernetes_conf")
   def refreshKubernetesConf(): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "configuration", AdminRole.Refresh)
     val ipAddress = fe.getIpAddress
     info(s"Receive refresh kubernetes conf request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to refresh the kubernetes conf")
-    }
     info(s"Reloading kubernetes conf")
     KyuubiServer.refreshKubernetesConf()
     Response.ok(s"Refresh the kubernetes conf successfully.").build()
@@ -111,13 +99,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @POST
   @Path("refresh/unlimited_users")
   def refreshUnlimitedUser(): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "policy", AdminRole.Refresh)
     val ipAddress = fe.getIpAddress
     info(s"Receive refresh unlimited users request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to refresh the unlimited users")
-    }
     info(s"Reloading unlimited users")
     KyuubiServer.refreshUnlimitedUsers()
     Response.ok(s"Refresh the unlimited users successfully.").build()
@@ -130,13 +114,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @POST
   @Path("refresh/deny_users")
   def refreshDenyUser(): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "policy", AdminRole.Refresh)
     val ipAddress = fe.getIpAddress
     info(s"Receive refresh deny users request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to refresh the deny users")
-    }
     info(s"Reloading deny users")
     KyuubiServer.refreshDenyUsers()
     Response.ok(s"Refresh the deny users successfully.").build()
@@ -149,13 +129,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @POST
   @Path("refresh/deny_ips")
   def refreshDenyIp(): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "policy", AdminRole.Refresh)
     val ipAddress = fe.getIpAddress
     info(s"Receive refresh deny ips request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to refresh the deny ips")
-    }
     info(s"Reloading deny ips")
     KyuubiServer.refreshDenyIps()
     Response.ok(s"Refresh the deny ips successfully.").build()
@@ -172,13 +148,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   def sessions(
       @QueryParam("users") users: String,
       @QueryParam("sessionType") sessionType: String): Seq[SessionData] = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "session", AdminRole.Read)
     val ipAddress = fe.getIpAddress
     info(s"Received listing all live sessions request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to list all live sessions")
-    }
     var sessions = fe.be.sessionManager.allSessions()
     if (StringUtils.isNoneBlank(sessionType)) {
       sessions = sessions.filter(session =>
@@ -198,13 +170,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @DELETE
   @Path("sessions/{sessionHandle}")
   def closeSession(@PathParam("sessionHandle") sessionHandleStr: String): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "session", AdminRole.Control)
     val ipAddress = fe.getIpAddress
     info(s"Received closing a session request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to close the session $sessionHandleStr")
-    }
     val sessionHandle = SessionHandle.fromUUID(sessionHandleStr)
     fe.be.sessionManager.getSessionOption(sessionHandle) match {
       case Some(_) =>
@@ -229,13 +197,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
       @QueryParam("users") users: String,
       @QueryParam("sessionHandle") sessionHandle: String,
       @QueryParam("sessionType") sessionType: String): Seq[OperationData] = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "operation", AdminRole.Read)
     val ipAddress = fe.getIpAddress
     info(s"Received listing all of the active operations request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to list all the operations")
-    }
     var operations = fe.be.sessionManager.operationManager.allOperations()
     if (StringUtils.isNotBlank(users)) {
       val usersSet = users.split(",").toSet
@@ -261,13 +225,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @DELETE
   @Path("operations/{operationHandle}")
   def closeOperation(@PathParam("operationHandle") operationHandleStr: String): Response = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "operation", AdminRole.Control)
     val ipAddress = fe.getIpAddress
     info(s"Received close an operation request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to close the operation $operationHandleStr")
-    }
     val operationHandle = OperationHandle(operationHandleStr)
     fe.be.closeOperation(operationHandle)
     Response.ok(s"Operation $operationHandleStr is closed successfully.").build()
@@ -287,7 +247,7 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
       @QueryParam("hive.server2.proxy.user") hs2ProxyUser: String,
       @QueryParam("kill") @DefaultValue("false") kill: Boolean): Response = {
     val activeProxyUser = Option(kyuubiProxyUser).getOrElse(hs2ProxyUser)
-    val userName = if (fe.isAdministrator(fe.getRealUser())) {
+    val userName = if (AdminPermissionService.isPlatformAdmin(fe, fe.getRealUser())) {
       Option(activeProxyUser).getOrElse(fe.getRealUser())
     } else {
       fe.getSessionUser(activeProxyUser)
@@ -341,7 +301,7 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
       @QueryParam("proxyUser") kyuubiProxyUser: String,
       @QueryParam("hive.server2.proxy.user") hs2ProxyUser: String): Seq[Engine] = {
     val activeProxyUser = Option(kyuubiProxyUser).getOrElse(hs2ProxyUser)
-    val userName = if (fe.isAdministrator(fe.getRealUser())) {
+    val userName = if (AdminPermissionService.isPlatformAdmin(fe, fe.getRealUser())) {
       Option(activeProxyUser).getOrElse(fe.getRealUser())
     } else {
       fe.getSessionUser(activeProxyUser)
@@ -389,13 +349,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
   @GET
   @Path("server")
   def listServers(): Seq[ServerData] = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "server", AdminRole.Read)
     val ipAddress = fe.getIpAddress
     info(s"Received list all live kyuubi servers request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to list all live kyuubi servers")
-    }
     val kyuubiConf = fe.getConf
     val servers = ListBuffer[ServerData]()
     val serverSpec = DiscoveryPaths.makePath(null, kyuubiConf.get(HA_NAMESPACE))
@@ -460,13 +416,9 @@ private[v1] class AdminResource extends ApiRequestContext with Logging {
       @QueryParam("batchType") @DefaultValue("SPARK") batchType: String,
       @QueryParam("batchUser") batchUser: String,
       @QueryParam("batchState") batchState: String): Count = {
-    val userName = fe.getSessionUser(Map.empty[String, String])
+    val userName = AdminPermissionService.require(fe, "batch", AdminRole.Read)
     val ipAddress = fe.getIpAddress
     info(s"Received counting batches request from $userName/$ipAddress")
-    if (!fe.isAdministrator(userName)) {
-      throw new ForbiddenException(
-        s"$userName is not allowed to count the batches")
-    }
     val batchCount = fe.batchService
       .map(_.countBatch(batchType, Option(batchUser), Option(batchState)))
       .getOrElse(0)

@@ -83,6 +83,13 @@ class KyuubiSessionImpl(
     handle.identifier.toString,
     sessionManager.applicationManager,
     sessionManager.engineStartupProcessSemaphore)
+
+  /**
+   * Returns the engine type after server defaults and session-level configuration have been
+   * applied. The normalized session overlay does not necessarily contain default values.
+   */
+  private[kyuubi] def effectiveEngineType: String = sessionConf.get(ENGINE_TYPE)
+
   private[kyuubi] val launchEngineOp = sessionManager.operationManager
     .newLaunchEngineOperation(this, sessionConf.get(SESSION_ENGINE_LAUNCH_ASYNC))
 

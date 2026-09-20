@@ -74,6 +74,24 @@ private[v1] class ApiRootResource extends ApiRequestContext {
   @Path("admin")
   def admin: Class[AdminResource] = classOf[AdminResource]
 
+  @Path("admin/policies")
+  def adminPolicies: Class[AdminPoliciesResource] = classOf[AdminPoliciesResource]
+
+  @Path("admin/configuration")
+  def adminConfiguration: Class[AdminConfigurationResource] = classOf[AdminConfigurationResource]
+
+  @Path("admin/audit")
+  def audit: Class[AuditResource] = classOf[AuditResource]
+
+  @Path("admin/event-audit")
+  def eventAudit: Class[NativeAuditResource] = classOf[NativeAuditResource]
+
+  @Path("admin/permissions")
+  def adminPermissions: Class[AdminPermissionsResource] = classOf[AdminPermissionsResource]
+
+  @Path("admin/access")
+  def adminAccess: Class[AdminAccessResource] = classOf[AdminAccessResource]
+
   @Path("data-agent")
   def dataAgent: Class[DataAgentResource] = classOf[DataAgentResource]
 
@@ -82,6 +100,12 @@ private[v1] class ApiRootResource extends ApiRequestContext {
 
   @Path("sql-rules")
   def sqlRules: Class[RulesResource] = classOf[RulesResource]
+
+  @Path("overview")
+  def overview: Class[OverviewResource] = classOf[OverviewResource]
+
+  @Path("sql-records")
+  def sqlRecords: Class[SqlRecordsResource] = classOf[SqlRecordsResource]
 
   @GET
   @Path("exception")

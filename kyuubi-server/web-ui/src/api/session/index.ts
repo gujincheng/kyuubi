@@ -17,19 +17,47 @@
 
 import request from '@/utils/request'
 
-export function getAllSessions() {
+interface SessionData {
+  identifier: string
+  remoteId?: string
+  user?: string
+  ipAddr?: string
+  conf?: Record<string, string>
+  createTime?: number
+  duration?: number
+  idleTime?: number
+  exception?: string
+  sessionType?: string
+  kyuubiInstance?: string
+  engineId?: string
+  engineName?: string
+  engineUrl?: string
+  sessionName?: string
+  totalOperations?: number
+}
+
+interface SessionSearchParams {
+  user?: string
+  users?: string
+  sessionType?: string
+}
+
+export function getAllSessions(params: SessionSearchParams = {}) {
   return request({
     url: 'api/v1/admin/sessions',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 
-export function deleteSession(sessionId: string) {
+export function closeSession(sessionId: string) {
   return request({
     url: `api/v1/admin/sessions/${sessionId}`,
     method: 'delete'
   })
 }
+
+export const deleteSession = closeSession
 
 export function getSession(sessionId: string) {
   return request({
@@ -44,3 +72,5 @@ export function getAllTypeOperation(sessionId: string) {
     method: 'get'
   })
 }
+
+export type { SessionData, SessionSearchParams }

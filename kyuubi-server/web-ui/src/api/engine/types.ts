@@ -16,10 +16,21 @@
  */
 
 interface IEngineSearch {
-  type: null | string
-  sharelevel: null | string
-  'hive.server2.proxy.user': null | string
+  type?: null | string
+  sharelevel?: null | string
+  'hive.server2.proxy.user'?: null | string
   subdomain?: null | string
 }
 
-export { IEngineSearch }
+interface EngineData {
+  version?: string
+  user?: string
+  engineType?: string
+  sharelevel?: string
+  subdomain?: string
+  instance?: string
+  namespace?: string
+  attributes?: Record<string, string>
+}
+
+export { EngineData, IEngineSearch }

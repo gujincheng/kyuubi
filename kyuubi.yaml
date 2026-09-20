@@ -34,14 +34,17 @@ data:
     kyuubi.session.engine.idle.timeout=PT30M
     kyuubi.session.engine.initialize.timeout=PT3M
     kyuubi.log.level=INFO
+    # Redact per-datasource object-storage credentials from engine launch logs and session views.
+    kyuubi.server.redaction.regex=(?i)password|secret|token|credential|access\\.key
     kyuubi.digiwin.datasource.store.enabled=true
-    kyuubi.digiwin.datasource.store.jdbc.url=jdbc:sqlite:/tmp/digiwin-datasources.db
+    kyuubi.digiwin.datasource.store.jdbc.url=jdbc:sqlite:/opt/kyuubi/data/digiwin-datasources.db
     kyuubi.digiwin.datasource.store.jdbc.driver=org.sqlite.JDBC
+    # 固定的 16 字节数据源凭据加密主密钥；部署前替换为本环境专用值，后续不可随意修改。
     kyuubi.digiwin.datasource.credential.secret=0123456789abcdef
     kyuubi.session.conf.advisor=org.apache.kyuubi.digiwin.datasource.DatasourceConfAdvisor
     kyuubi.digiwin.sql.inspection.enabled=true
     kyuubi.backend.server.event.loggers=JSON
-    kyuubi.backend.server.event.json.log.path=file:///tmp/kyuubi-server-events
+    kyuubi.backend.server.event.json.log.path=file:///opt/kyuubi/data/events
   spark-defaults.conf: |
     spark.master                       k8s://https://kubernetes.default.svc:443
     spark.kubernetes.namespace         spark
@@ -68,31 +71,7 @@ data:
     spark.kubernetes.executor.volumes.hostPath.spark-local-dir-1.options.path  /opt/spark_shuffle_data
     spark.kubernetes.executor.volumes.hostPath.spark-local-dir-1.options.type  DirectoryOrCreate
     spark.kubernetes.executor.volumes.hostPath.spark-local-dir-1.mount.path    /data/shuffle
-    spark.kubernetes.executor.secretKeyRef.AWS_ACCESS_KEY_ID     aws-creds:AWS_ACCESS_KEY_ID
-    spark.kubernetes.executor.secretKeyRef.AWS_SECRET_ACCESS_KEY aws-creds:AWS_SECRET_ACCESS_KEY
-    spark.sql.extensions                            org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
-    spark.sql.catalog.spark_catalog                 org.apache.iceberg.spark.SparkSessionCatalog
-    spark.sql.catalog.spark_catalog.type            hive
-    spark.sql.warehouse.dir                         s3a://iceberg/
-    spark.sql.catalogImplementation                 hive
-    spark.hadoop.hive.execution.engine              spark
-    spark.hadoop.fs.s3a.endpoint                    http://s3.seaweedfs.local:30080
-    spark.hadoop.fs.s3a.path.style.access           true
-    spark.hadoop.fs.s3a.impl                        org.apache.hadoop.fs.s3a.S3AFileSystem
-    spark.hadoop.fs.s3a.connection.ssl.enabled      false
-    spark.hadoop.fs.s3a.aws.credentials.provider    com.amazonaws.auth.EnvironmentVariableCredentialsProvider
-  hive-site.xml: |
-    <?xml version="1.0" encoding="UTF-8"?>
-    <configuration>
-      <property>
-        <name>hive.metastore.uris</name>
-        <value>thrift://172.16.7.137:9083</value>
-      </property>
-      <property>
-        <name>hive.metastore.warehouse.dir</name>
-        <value>s3a://iceberg/</value>
-      </property>
-    </configuration>
+    # Catalog、HMS、Warehouse 和对象存储凭据均由数据源管理按标签动态注入
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -101,43 +80,69 @@ metadata:
   namespace: spark
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels: { app: kyuubi }
   template:
     metadata:
       labels: { app: kyuubi }
     spec:
+      securityContext:
+        fsGroup: 10009
       nodeSelector:
-        kubernetes.io/hostname: ddp2    # 镜像只构建在 ddp2;分发到其他节点后可删掉
+        kubernetes.io/hostname: ddp2
       serviceAccountName: spark-sa      # 复用现有 SA,driver 建 executor 权限已够
+      initContainers:
+        - name: initialize-kyuubi-state
+          image: kyuubi:1.12.0-digiwin-datasources
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              mkdir -p /state/conf /state/audit /state/events
+              for source in /seed/*; do
+                name=$(basename "$source")
+                if [ ! -e "/state/conf/$name" ]; then
+                  cp "$source" "/state/conf/$name"
+                fi
+              done
+              chown -R 10009:0 /state
+              chmod 750 /state /state/conf /state/audit /state/events
+          volumeMounts:
+            - { name: conf-seed, mountPath: /seed, readOnly: true }
+            - { name: data, mountPath: /state }
       containers:
         - name: kyuubi
-          image: kyuubi:1.12.0-digiwin
+          image: kyuubi:1.12.0-digiwin-datasources
           imagePullPolicy: IfNotPresent
           ports:
             - { containerPort: 10009 }
             - { containerPort: 10099 }
-          envFrom:
-            - secretRef: { name: aws-creds }
+          env:
+            - { name: KYUUBI_CONF_DIR, value: /opt/kyuubi/conf }
+            - { name: KYUUBI_IDENTITY_ACCESS_PATH, value: /opt/kyuubi/conf/kyuubi-identity-access.json }
+            - { name: KYUUBI_ADMIN_PERMISSIONS_PATH, value: /opt/kyuubi/conf/kyuubi-admin-permissions.json }
+            - { name: KYUUBI_AUDIT_LOG_PATH, value: /opt/kyuubi/data/audit/kyuubi-audit.jsonl }
           resources:
-            # driver 进程跑在本 Pod 内:默认档 2×2g + ETL 档 1×4g + server,约需 10g
+            # driver 进程跑在本 Pod 内:默认查询档预留 4C/8Gi,Executor 资源单独计算
             requests: { cpu: "2", memory: 6Gi }
-            limits:   { cpu: "8", memory: 16Gi }
+            limits:   { cpu: "4", memory: 8Gi }
           volumeMounts:
-            - { name: conf, mountPath: /opt/kyuubi/conf }
-            - { name: spark-conf, mountPath: /opt/spark/conf/spark-defaults.conf, subPath: spark-defaults.conf }
-            - { name: spark-conf, mountPath: /opt/spark/conf/hive-site.xml, subPath: hive-site.xml }
+            - { name: data, mountPath: /opt/kyuubi/data }
+            - { name: data, mountPath: /opt/kyuubi/conf, subPath: conf }
+            - { name: data, mountPath: /opt/spark/conf/spark-defaults.conf, subPath: conf/spark-defaults.conf }
       volumes:
-        - name: conf
+        - name: conf-seed
           configMap: { name: kyuubi-conf }
-        - name: spark-conf
-          configMap:
-            name: kyuubi-conf
-            items:
-              - { key: spark-defaults.conf, path: spark-defaults.conf }
-              - { key: hive-site.xml, path: hive-site.xml }
+        - name: data
+          hostPath:
+            path: /opt/kyuubi-data
+            type: DirectoryOrCreate
 ---
-# 集群总量兜底:所有档位(默认 pool 16C + ETL 12C)峰值叠加也撞不破此上限
+# 集群总量兜底:按三台 8C/24Gi 节点预留系统资源,默认档峰值不会超过此上限
 # 打满表现:executor Pod Pending(事件提示 exceeded quota)——这是背压信号,不是故障
 apiVersion: v1
 kind: ResourceQuota
@@ -146,10 +151,10 @@ metadata:
   namespace: spark
 spec:
   hard:
-    requests.cpu: "28"
-    requests.memory: 60Gi
-    limits.cpu: "40"
-    limits.memory: 75Gi
+    requests.cpu: "20"
+    requests.memory: 54Gi
+    limits.cpu: "24"
+    limits.memory: 64Gi
 ---
 # 与 quota 配套必需:quota 声明 limits/requests 后,未显式写 limits/requests 的 Pod 会被拒建。
 # 此处为命名空间内所有"漏写"的容器补默认值(executor 已由 spark.kubernetes.executor.limit.cores 显式覆盖)

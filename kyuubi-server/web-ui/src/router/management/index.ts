@@ -27,6 +27,33 @@ const router = [
     component: () => import('@/views/management/server/index.vue')
   },
   {
+    path: '/management/access',
+    name: 'access',
+    component: () => import('@/views/management/access/index.vue')
+  },
+  {
+    path: '/management/policy',
+    redirect: { path: '/management/access', query: { tab: 'profiles' } }
+  },
+  {
+    path: '/management/configuration',
+    name: 'configuration',
+    component: () => import('@/views/management/configuration/index.vue')
+  },
+  {
+    path: '/management/audit',
+    name: 'audit',
+    component: () => import('@/views/management/audit/index.vue')
+  },
+  {
+    path: '/management/event-audit',
+    redirect: { path: '/management/sql-record' }
+  },
+  {
+    path: '/management/permissions',
+    redirect: { path: '/management/access', query: { tab: 'roles' } }
+  },
+  {
     path: '/management/session',
     name: 'session',
     component: () => import('@/views/management/session/index.vue')
@@ -35,6 +62,16 @@ const router = [
     path: '/management/operation',
     name: 'operation',
     component: () => import('@/views/management/operation/index.vue')
+  },
+  {
+    path: '/management/sql-record',
+    name: 'queryAudit',
+    component: () => import('@/views/management/sql-record/index.vue')
+  },
+  {
+    path: '/management/datasource',
+    name: 'datasource',
+    component: () => import('@/views/management/datasource/index.vue')
   },
   {
     path: '/management/batch',

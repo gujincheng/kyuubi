@@ -227,4 +227,5 @@ KyuubiServer.KyuubiBackendService.executeStatement
 - **CLI 起服务引擎报 `ClassNotFoundException`**:加 `-Dkyuubi.testing=true`。
 - **引擎报 `No suitable driver`**:设 `kyuubi.engine.jdbc.extra.classpath` 指向目标库的 JDBC 驱动 jar。
 - **拦截告警在哪**:服务端日志,搜 `SQL_BLOCKED`(WARN 级别)。
-- **拦截事件是否进审计**:P0 暂未接入结构化审计日志(FR-6/7),目前仅在服务端日志输出;后续审计功能会记录。
+- **拦截事件是否进审计**:会。启用原生 Audit Log 后以 `sql_blocked` 事件写入当前 JSON 目录或 Kafka Topic，并可在页面查询。
+

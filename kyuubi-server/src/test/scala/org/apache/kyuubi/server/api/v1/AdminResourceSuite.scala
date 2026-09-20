@@ -39,8 +39,9 @@ import org.apache.kyuubi.engine.ShareLevel.{CONNECTION, GROUP, USER}
 import org.apache.kyuubi.ha.HighAvailabilityConf
 import org.apache.kyuubi.ha.client.{DiscoveryPaths, ServiceDiscovery}
 import org.apache.kyuubi.ha.client.DiscoveryClientProvider.withDiscoveryClient
+import org.apache.kyuubi.metrics.MetricsConf
 import org.apache.kyuubi.plugin.PluginLoader
-import org.apache.kyuubi.server.KyuubiRestFrontendService
+import org.apache.kyuubi.server.{AdminPermissionStore, KyuubiRestFrontendService}
 import org.apache.kyuubi.server.http.util.HttpAuthUtils
 import org.apache.kyuubi.server.http.util.HttpAuthUtils.AUTHORIZATION_HEADER
 import org.apache.kyuubi.service.authentication.AnonymousAuthenticationProviderImpl
@@ -50,14 +51,19 @@ import org.apache.kyuubi.shaded.hive.service.rpc.thrift.TProtocolVersion.HIVE_CL
 class AdminResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper {
 
   private val engineMgr = new KyuubiApplicationManager(None)
+  private val permissionFile = Utils.createTempDir("admin-permissions").resolve(
+    "kyuubi-admin-permissions.json").toFile
 
   override protected lazy val conf: KyuubiConf = KyuubiConf()
     .set(AUTHENTICATION_METHOD, Seq("CUSTOM"))
     .set(AUTHENTICATION_CUSTOM_CLASS, classOf[AnonymousAuthenticationProviderImpl].getName)
     .set(SERVER_ADMINISTRATORS, Set("admin001"))
+    .set(MetricsConf.METRICS_REPORTERS, Set.empty[String])
     .set(ENGINE_IDLE_TIMEOUT, Duration.ofMinutes(3).toMillis)
 
   override def beforeAll(): Unit = {
+    permissionFile.delete()
+    AdminPermissionStore.setFileForTesting(Some(permissionFile))
     super.beforeAll()
     engineMgr.initialize(KyuubiConf())
     engineMgr.start()
@@ -65,6 +71,8 @@ class AdminResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper {
 
   override def afterAll(): Unit = {
     engineMgr.stop()
+    AdminPermissionStore.setFileForTesting(None)
+    permissionFile.delete()
     super.afterAll()
   }
 
@@ -104,6 +112,128 @@ class AdminResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper {
       .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader(Utils.currentUser))
       .post(null)
     assert(response.getStatus === 200)
+  }
+
+  test("list admin policies with administrator authorization") {
+    var response = webTarget.path("api/v1/admin/policies")
+      .request()
+      .get()
+    assert(response.getStatus === 401)
+
+    response = webTarget.path("api/v1/admin/policies")
+      .request()
+      .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader("admin002"))
+      .get()
+    assert(response.getStatus === 403)
+
+    response = webTarget.path("api/v1/admin/policies")
+      .request()
+      .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader(Utils.currentUser))
+      .get()
+    assert(response.getStatus === 200)
+    val body = response.readEntity(classOf[String])
+    assert(body.contains("profiles"))
+    assert(body.contains("userDefaults"))
+    assert(body.contains("unlimitedUsers"))
+    assert(body.contains("denyUsers"))
+    assert(body.contains("denyIps"))
+  }
+
+  test("update admin policies requires administrator and exactly one policy domain") {
+    val body = """{
+                 |  "access": {"unlimitedUsers": [], "denyUsers": [], "denyIps": []},
+                 |  "profiles": [{"name": "analyst", "properties": {}}]
+                 |}""".stripMargin
+
+    var response = webTarget.path("api/v1/admin/policies")
+      .request(MediaType.APPLICATION_JSON_TYPE)
+      .put(Entity.entity(body, MediaType.APPLICATION_JSON_TYPE))
+    assert(response.getStatus === 401)
+
+    response = webTarget.path("api/v1/admin/policies")
+      .request(MediaType.APPLICATION_JSON_TYPE)
+      .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader("admin002"))
+      .put(Entity.entity(body, MediaType.APPLICATION_JSON_TYPE))
+    assert(response.getStatus === 403)
+
+    response = webTarget.path("api/v1/admin/policies")
+      .request(MediaType.APPLICATION_JSON_TYPE)
+      .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader(Utils.currentUser))
+      .put(Entity.entity(body, MediaType.APPLICATION_JSON_TYPE))
+    assert(response.getStatus === 400)
+    assert(response.readEntity(classOf[String]).contains("exactly one"))
+  }
+
+  test("admin permission roles restrict management actions") {
+    try {
+      val assignments = """{"assignments":[{"user":"admin001","role":"viewer"}]}"""
+      var response = webTarget.path("api/v1/admin/permissions")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader(Utils.currentUser))
+        .put(Entity.entity(assignments, MediaType.APPLICATION_JSON_TYPE))
+      assert(response.getStatus === 200)
+      assert(response.readEntity(classOf[String]).contains("viewer"))
+
+      response = webTarget.path("api/v1/admin/configuration")
+        .request()
+        .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader("admin001"))
+        .get()
+      assert(response.getStatus === 200)
+
+      response = webTarget.path("api/v1/admin/refresh/hadoop_conf")
+        .request()
+        .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader("admin001"))
+        .post(null)
+      assert(response.getStatus === 403)
+
+      response = webTarget.path("api/v1/admin/permissions")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader("admin001"))
+        .put(Entity.entity(assignments, MediaType.APPLICATION_JSON_TYPE))
+      assert(response.getStatus === 403)
+    } finally {
+      val response = webTarget.path("api/v1/admin/permissions")
+        .request(MediaType.APPLICATION_JSON_TYPE)
+        .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader(Utils.currentUser))
+        .put(Entity.entity("{\"assignments\":[]}", MediaType.APPLICATION_JSON_TYPE))
+      assert(response.getStatus === 200)
+    }
+  }
+
+  test("list admin configuration with administrator authorization and redaction") {
+    val unauthorized = webTarget.path("api/v1/admin/configuration").request().get()
+    assert(unauthorized.getStatus === 401)
+
+    val response = webTarget.path("api/v1/admin/configuration").request()
+      .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader(Utils.currentUser))
+      .get()
+    assert(response.getStatus === 200)
+    val body = response.readEntity(classOf[String])
+    assert(body.contains("securityEnabled"))
+    assert(body.contains("authenticationMethods"))
+    assert(body.contains("administrators"))
+    assert(body.contains("categories"))
+    assert(body.contains("reloads"))
+    assert(!body.contains("digiwin@123"))
+  }
+
+  test("list admin audit records with administrator authorization and filters") {
+    var response = webTarget.path("api/v1/admin/audit")
+      .request()
+      .get()
+    assert(response.getStatus === 401)
+
+    response = webTarget.path("api/v1/admin/audit")
+      .queryParam("method", "GET")
+      .queryParam("limit", "10")
+      .request()
+      .header(AUTHORIZATION_HEADER, HttpAuthUtils.basicAuthorizationHeader(Utils.currentUser))
+      .get()
+    assert(response.getStatus === 200)
+    val body = response.readEntity(classOf[String])
+    assert(body.contains("records"))
+    assert(body.contains("total"))
+    assert(body.contains("generatedAt"))
   }
 
   test("refresh unlimited users of the kyuubi server") {

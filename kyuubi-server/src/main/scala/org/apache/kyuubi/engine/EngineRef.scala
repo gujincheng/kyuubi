@@ -268,11 +268,17 @@ private[kyuubi] class EngineRef(
         new DataAgentProcessBuilder(appUser, doAsEnabled, conf, engineRefId, extraEngineLog)
     }
 
-    MetricsSystem.tracing(_.incCount(ENGINE_TOTAL))
+    MetricsSystem.tracing { ms =>
+      ms.incCount(ENGINE_TOTAL)
+      ms.incCount(MetricRegistry.name(ENGINE_TOTAL, engineType.toString))
+    }
     var acquiredPermit = false
     try {
       if (!startupProcessSemaphore.forall(_.tryAcquire(timeout, TimeUnit.MILLISECONDS))) {
-        MetricsSystem.tracing(_.incCount(MetricRegistry.name(ENGINE_TIMEOUT, appUser)))
+        MetricsSystem.tracing { ms =>
+          ms.incCount(ENGINE_TIMEOUT)
+          ms.incCount(MetricRegistry.name(ENGINE_TIMEOUT, appUser))
+        }
         throw KyuubiSQLException(
           s"Timeout($timeout ms, you can modify ${ENGINE_INIT_TIMEOUT.key} to change it) to" +
             s" acquires a permit from engine builder semaphore.")
@@ -293,6 +299,7 @@ private[kyuubi] class EngineRef(
           } else {
             val error = builder.getError
             MetricsSystem.tracing { ms =>
+              ms.incCount(ENGINE_FAIL)
               ms.incCount(MetricRegistry.name(ENGINE_FAIL, appUser))
               ms.incCount(MetricRegistry.name(ENGINE_FAIL, error.getClass.getSimpleName))
             }
@@ -304,7 +311,10 @@ private[kyuubi] class EngineRef(
           val killMessage =
             engineManager.killApplication(builder.appMgrInfo(), engineRefId, Some(appUser))
           builder.close(true)
-          MetricsSystem.tracing(_.incCount(MetricRegistry.name(ENGINE_TIMEOUT, appUser)))
+          MetricsSystem.tracing { ms =>
+            ms.incCount(ENGINE_TIMEOUT)
+            ms.incCount(MetricRegistry.name(ENGINE_TIMEOUT, appUser))
+          }
           throw KyuubiSQLException(
             s"Timeout($timeout ms, you can modify ${ENGINE_INIT_TIMEOUT.key} to change it) to" +
               s" launched $engineType engine with $redactedCmd. $killMessage",
@@ -329,6 +339,7 @@ private[kyuubi] class EngineRef(
             applicationInfo.foreach { appInfo =>
               if (ApplicationState.isTerminated(appInfo.state)) {
                 MetricsSystem.tracing { ms =>
+                  ms.incCount(ENGINE_FAIL)
                   ms.incCount(MetricRegistry.name(ENGINE_FAIL, appUser))
                   ms.incCount(MetricRegistry.name(ENGINE_FAIL, "ENGINE_TERMINATE"))
                 }

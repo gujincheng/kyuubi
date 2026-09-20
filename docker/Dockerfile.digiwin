@@ -24,10 +24,10 @@
 #   - also copies the JDBC engine (official Dockerfile only copies Spark engine)
 #
 # Build (from the unpacked binary tarball directory):
-#   1. put the mysql driver into the jdbc engine dir first:
-#      wget -P externals/engines/jdbc/ \
-#        https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.4.0/mysql-connector-j-8.4.0.jar
-#   2. docker build -f docker/Dockerfile.digiwin -t kyuubi:1.12.0-digiwin .
+#   1. put all JDBC drivers required by the deployment into the jdbc engine dir:
+#      mysql-connector-j, postgresql and ojdbc8. They are copied into the
+#      engine classpath and are intentionally not downloaded by this Dockerfile.
+#   2. docker build -f docker/Dockerfile.digiwin -t kyuubi:1.12.0-digiwin-datasources .
 
 FROM spark-iceberg:3.5.8
 
@@ -54,6 +54,9 @@ COPY externals/engines/jdbc ${KYUUBI_HOME}/externals/engines/jdbc
 
 WORKDIR ${KYUUBI_HOME}
 RUN chown -R kyuubi:root ${KYUUBI_HOME} && \
+    test -n "$(find ${KYUUBI_HOME}/externals/engines/jdbc -maxdepth 1 -name 'mysql-connector-j-*.jar' -print -quit)" && \
+    test -n "$(find ${KYUUBI_HOME}/externals/engines/jdbc -maxdepth 1 -name 'postgresql-*.jar' -print -quit)" && \
+    test -n "$(find ${KYUUBI_HOME}/externals/engines/jdbc -maxdepth 1 -name 'ojdbc*.jar' -print -quit)" && \
     chmod ug+rw -R ${KYUUBI_HOME} && \
     chmod a+rwx -R ${KYUUBI_WORK_DIR_ROOT}
 

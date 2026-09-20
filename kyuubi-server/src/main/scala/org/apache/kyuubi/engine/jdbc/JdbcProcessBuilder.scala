@@ -18,7 +18,7 @@
 package org.apache.kyuubi.engine.jdbc
 
 import java.io.File
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 
 import scala.collection.mutable
 
@@ -80,14 +80,14 @@ class JdbcProcessBuilder(
     mainResource.foreach(classpathEntries.add)
     mainResource.foreach { path =>
       val parent = Paths.get(path).getParent
-      if (Utils.isTesting) {
-        // add dev classpath
-        val jdbcDeps = parent
-          .resolve(s"scala-$SCALA_COMPILE_VERSION")
-          .resolve("jars")
+      val jdbcDeps = parent
+        .resolve(s"scala-$SCALA_COMPILE_VERSION")
+        .resolve("jars")
+      if (Files.isDirectory(jdbcDeps)) {
+        // A source build keeps runtime dependencies below target/scala-<version>/jars.
         classpathEntries.add(s"$jdbcDeps${File.separator}*")
       } else {
-        // add prod classpath
+        // A binary distribution keeps the engine and its dependencies in the same directory.
         classpathEntries.add(s"$parent${File.separator}*")
       }
     }

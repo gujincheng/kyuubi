@@ -16,7 +16,10 @@
  */
 package org.apache.kyuubi.engine.jdbc
 
-import org.apache.kyuubi.KyuubiFunSuite
+import java.io.File
+import java.nio.file.Files
+
+import org.apache.kyuubi.{KyuubiFunSuite, SCALA_COMPILE_VERSION, Utils}
 import org.apache.kyuubi.config.KyuubiConf
 import org.apache.kyuubi.config.KyuubiConf.{ENGINE_JDBC_CONNECTION_PASSWORD, ENGINE_JDBC_CONNECTION_URL, ENGINE_JDBC_EXTRA_CLASSPATH, ENGINE_JDBC_JAVA_OPTIONS, ENGINE_JDBC_MEMORY}
 
@@ -78,5 +81,21 @@ class JdbcProcessBuilderSuite extends KyuubiFunSuite {
     val builder = new JdbcProcessBuilder("kyuubi", true, conf)
     val command = builder.toString
     assert(command.contains("/dummy_classpath/*"))
+  }
+
+  test("use dependency directory from a source build") {
+    val targetDir = Utils.createTempDir("jdbc-engine-source-build")
+    val engineJar = Files.createFile(
+      targetDir.resolve(s"kyuubi-jdbc-engine_$SCALA_COMPILE_VERSION-1.12.0.jar"))
+    val dependencyDir = Files.createDirectories(
+      targetDir.resolve(s"scala-$SCALA_COMPILE_VERSION").resolve("jars"))
+    val conf = KyuubiConf()
+      .set(ENGINE_JDBC_CONNECTION_URL.key, "")
+      .set("kyuubi.session.engine.jdbc.main.resource", engineJar.toString)
+
+    val command = new JdbcProcessBuilder("kyuubi", true, conf).toString
+
+    assert(command.contains(s"$dependencyDir${File.separator}*"))
+    assert(!command.contains(s"$targetDir${File.separator}*"))
   }
 }
