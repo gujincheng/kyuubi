@@ -41,6 +41,7 @@ export interface AuditRecordPage {
 export interface AuditQuery {
   user?: string
   method?: string
+  action?: string
   status?: number
   from?: number
   to?: number
@@ -53,6 +54,159 @@ export function getAuditRecords(params: AuditQuery = {}) {
     method: 'get',
     params
   }) as Promise<AuditRecordPage>
+}
+
+export interface AuditKafkaConfig {
+  bootstrapServers: string
+  topic: string
+  securityProtocol: 'PLAINTEXT' | 'SSL' | 'SASL_PLAINTEXT' | 'SASL_SSL'
+  saslMechanism: string
+  username: string
+  password: string
+  truststoreLocation: string
+  truststorePassword: string
+}
+
+export interface ManagedAuditConfig {
+  enabled: boolean
+  mode: 'JSON' | 'KAFKA'
+  jsonPath: string
+  retentionDays: number
+  kafka: AuditKafkaConfig
+}
+
+export interface ManagedAuditConfigView extends ManagedAuditConfig {
+  passwordConfigured: boolean
+  truststorePasswordConfigured: boolean
+  updatedAt: number
+  healthy: boolean
+  message: string
+}
+
+export interface AuditConnectionTestResult {
+  success: boolean
+  message: string
+  checkedAt: number
+}
+
+export interface NativeAuditEvent {
+  id: string
+  source: string
+  eventType: string
+  eventTime: number
+  createTime: number
+  startTime: number
+  completeTime: number
+  user: string
+  status: string
+  statement: string
+  sessionId: string
+  operationId: string
+  clientIp: string
+  datasourceLabel: string
+  engineType: string
+  duration: number
+  error: string
+  rawJson: string
+  note?: string
+}
+
+export interface NativeAuditEventPage {
+  records: NativeAuditEvent[]
+  total: number
+  generatedAt: number
+  source: string
+  message: string
+}
+
+export interface NativeAuditActivity {
+  id: string
+  eventType: string
+  eventTypes: string[]
+  statement: string
+  user: string
+  sessionId: string
+  operationId: string
+  engineType: string
+  state: string
+  createTime: number
+  startTime: number
+  completeTime: number
+  duration: number
+  error: string
+  eventCount: number
+  note?: string
+}
+
+export interface NativeAuditActivityPage {
+  records: NativeAuditActivity[]
+  page: number
+  pageSize: number
+  total: number
+  auditEnabled: boolean
+  source: string
+  message: string
+}
+
+export interface NativeAuditActivityQuery {
+  page: number
+  pageSize: number
+  eventType?: string
+  user?: string
+  status?: string
+  keyword?: string
+  from?: number
+  to?: number
+}
+
+export interface NativeAuditQuery {
+  eventType?: string
+  user?: string
+  status?: string
+  operationId?: string
+  sessionId?: string
+  from?: number
+  to?: number
+  limit?: number
+}
+
+export function getNativeAuditConfig() {
+  return request({
+    url: 'api/v1/admin/event-audit/config',
+    method: 'get'
+  }) as Promise<ManagedAuditConfigView>
+}
+
+export function updateNativeAuditConfig(data: ManagedAuditConfig) {
+  return request({
+    url: 'api/v1/admin/event-audit/config',
+    method: 'put',
+    data
+  }) as Promise<ManagedAuditConfigView>
+}
+
+export function testNativeAuditConfig(data: ManagedAuditConfig) {
+  return request({
+    url: 'api/v1/admin/event-audit/test',
+    method: 'post',
+    data
+  }) as Promise<AuditConnectionTestResult>
+}
+
+export function getNativeAuditEvents(params: NativeAuditQuery = {}) {
+  return request({
+    url: 'api/v1/admin/event-audit/events',
+    method: 'get',
+    params
+  }) as Promise<NativeAuditEventPage>
+}
+
+export function getNativeAuditActivities(params: NativeAuditActivityQuery) {
+  return request({
+    url: 'api/v1/admin/event-audit/activities',
+    method: 'get',
+    params
+  }) as Promise<NativeAuditActivityPage>
 }
 
 export type { AuditQuery as AdminAuditQuery }

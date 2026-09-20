@@ -20,7 +20,7 @@ package org.apache.kyuubi.server.http.authentication
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import org.apache.kyuubi.Logging
-import org.apache.kyuubi.server.AuditRecordStore
+import org.apache.kyuubi.server.{AuditRecord, AuditRecordStore}
 import org.apache.kyuubi.server.http.authentication.AuthenticationFilter._
 
 object AuthenticationAuditLogger extends Logging {
@@ -47,15 +47,17 @@ object AuthenticationAuditLogger extends Logging {
     sb.append(s"status=${response.getStatus}")
     info(sb.toString())
     AuditRecordStore.append(
-      user = Option(HTTP_CLIENT_USER_NAME.get()).getOrElse("anonymous"),
-      authType = Option(HTTP_AUTH_TYPE.get()).getOrElse("UNKNOWN"),
-      ip = Option(HTTP_CLIENT_IP_ADDRESS.get()).getOrElse(""),
-      proxyIp = Option(HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.get()).getOrElse(""),
-      forwardedFor = getForwardedAddresses,
-      method = request.getMethod,
-      uri = request.getRequestURI,
-      query = Option(request.getQueryString),
-      protocol = request.getProtocol,
-      status = response.getStatus)
+      AuditRecord(
+        timestamp = System.currentTimeMillis(),
+        user = Option(HTTP_CLIENT_USER_NAME.get()).getOrElse("anonymous"),
+        authType = Option(HTTP_AUTH_TYPE.get()).getOrElse("UNKNOWN"),
+        ip = Option(HTTP_CLIENT_IP_ADDRESS.get()).getOrElse(""),
+        proxyIp = Option(HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.get()).getOrElse(""),
+        forwardedFor = getForwardedAddresses,
+        method = request.getMethod,
+        uri = request.getRequestURI,
+        query = Option(request.getQueryString),
+        protocol = request.getProtocol,
+        status = response.getStatus))
   }
 }

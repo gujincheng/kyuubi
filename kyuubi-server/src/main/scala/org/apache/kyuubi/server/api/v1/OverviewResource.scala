@@ -197,7 +197,8 @@ private[v1] class OverviewResource extends ApiRequestContext {
   private def accessHealth(): OverviewAccessHealth = {
     val requestCount = MetricsSystem.counterValue(MetricsConstants.REST_CONN_TOTAL).getOrElse(0L)
     val failedRequests = MetricsSystem.counterValue(MetricsConstants.REST_CONN_FAIL).getOrElse(0L)
-    val failureRate = if (requestCount == 0L) 0.0 else {
+    val failureRate = if (requestCount == 0L) 0.0
+    else {
       failedRequests.toDouble / requestCount.toDouble * 100
     }
     OverviewAccessHealth(
@@ -255,9 +256,9 @@ private[v1] class OverviewResource extends ApiRequestContext {
       stale = stale,
       sampleIntervalMs = overviewMetrics.sampleInterval,
       message = status match {
-        case "INITIALIZING" => "Overview 指标正在初始化"
-        case "STALE" => "Overview 指标数据已停止更新"
-        case _ => "Overview 指标数据正常"
+        case "INITIALIZING" => "Overview metrics are initializing"
+        case "STALE" => "Overview metrics data has stopped updating"
+        case _ => "Overview metrics data is up to date"
       })
   }
 

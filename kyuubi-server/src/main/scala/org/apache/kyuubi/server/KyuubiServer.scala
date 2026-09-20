@@ -25,11 +25,11 @@ import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.kyuubi._
 import org.apache.kyuubi.config.KyuubiConf
-import org.apache.kyuubi.config.KyuubiConf.{DIGIWIN_DATASOURCE_LABEL_KEY, DIGIWIN_DATASOURCE_STORE_ENABLED, DIGIWIN_SQL_INSPECTION_ENABLED, FRONTEND_PROTOCOLS, FrontendProtocols, KYUUBI_KUBERNETES_CONF_PREFIX}
+import org.apache.kyuubi.config.KyuubiConf.{DIGIWIN_DATASOURCE_LABEL_KEY, DIGIWIN_DATASOURCE_STORE_ENABLED, DIGIWIN_SQL_INSPECTION_ENABLED, FRONTEND_PROTOCOLS, FrontendProtocols, KYUUBI_KUBERNETES_CONF_PREFIX, SERVER_EVENT_ASYNC_ENABLED}
 import org.apache.kyuubi.config.KyuubiConf.FrontendProtocols._
 import org.apache.kyuubi.digiwin.datasource.{DatasourceRegistry, DatasourceRegistryHolder}
 import org.apache.kyuubi.digiwin.security.{RuleRegistry, RuleRegistryHolder}
-import org.apache.kyuubi.events.{EventBus, KyuubiServerInfoEvent, ServerEventHandlerRegister}
+import org.apache.kyuubi.events.{EventBus, KyuubiServerInfoEvent}
 import org.apache.kyuubi.ha.HighAvailabilityConf._
 import org.apache.kyuubi.ha.client.{AuthTypes, ServiceDiscovery}
 import org.apache.kyuubi.metrics.{MetricsConf, MetricsSystem}
@@ -209,7 +209,6 @@ class KyuubiServer(name: String) extends Serverable(name) {
     }
 
   override def initialize(conf: KyuubiConf): Unit = synchronized {
-    SqlExecutionRecordStore.clear()
     val kinit = new KinitAuxiliaryService()
     addService(kinit)
 
@@ -268,7 +267,12 @@ class KyuubiServer(name: String) extends Serverable(name) {
   }
 
   private def initLoggerEventHandler(conf: KyuubiConf): Unit = {
-    ServerEventHandlerRegister.registerEventLoggers(conf)
+    ManagedAuditEventService.initialize(conf)
+    if (conf.get(SERVER_EVENT_ASYNC_ENABLED)) {
+      EventBus.registerAsync(ManagedAuditEventService)
+    } else {
+      EventBus.register(ManagedAuditEventService)
+    }
   }
 
   override protected def stopServer(): Unit = {

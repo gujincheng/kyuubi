@@ -36,10 +36,10 @@ kyuubi.digiwin.sql.inspection.enabled=true
 
 ```
 ${kyuubi.backend.server.event.json.log.path}/
-  kyuubi_operation/day=2026-07-21/server-hostname.json     ← 操作事件（含审计字段）
-  kyuubi_session/day=2026-07-21/server-hostname.json       ← 会话事件（已有）
-  kyuubi_server_info/day=2026-07-21/server-hostname.json   ← 服务信息事件（已有）
-  sql_blocked/day=2026-07-21/server-hostname.json          ← SQL 拦截事件（新增）
+  kyuubi_operation/day=20260721/server-hostname.json     ← 操作事件（含审计字段）
+  kyuubi_session/day=20260721/server-hostname.json       ← 会话事件（已有）
+  kyuubi_server_info/day=20260721/server-hostname.json   ← 服务信息事件（已有）
+  sql_blocked/day=20260721/server-hostname.json          ← SQL 拦截事件（新增）
 ```
 
 每个文件每行一个 JSON 对象，可用 `jq`、Spark、Hive 等工具解析。
@@ -137,28 +137,28 @@ SQL 拦截发生在引擎执行之前，**不会创建 Operation**，因此不�
 ### 5.1 用 jq 查询慢查询（executionDuration > 5s）
 
 ```bash
-cat /tmp/kyuubi-server-events/kyuubi_operation/day=2026-07-21/server-*.json \
+cat /tmp/kyuubi-server-events/kyuubi_operation/day=20260721/server-*.json \
   | jq 'select(.executionDuration > 5000)'
 ```
 
 ### 5.2 统计各数据源的查询次数
 
 ```bash
-cat /tmp/kyuubi-server-events/kyuubi_operation/day=2026-07-21/server-*.json \
+cat /tmp/kyuubi-server-events/kyuubi_operation/day=20260721/server-*.json \
   | jq -r '.datasourceLabel' | sort | uniq -c | sort -rn
 ```
 
 ### 5.3 查看所有被拦截的 SQL
 
 ```bash
-cat /tmp/kyuubi-server-events/sql_blocked/day=2026-07-21/server-*.json \
+cat /tmp/kyuubi-server-events/sql_blocked/day=20260721/server-*.json \
   | jq '{user, clientIp, datasourceLabel, statement, ruleName, reason}'
 ```
 
 ### 5.4 查看某用户的操作历史
 
 ```bash
-cat /tmp/kyuubi-server-events/kyuubi_operation/day=2026-07-21/server-*.json \
+cat /tmp/kyuubi-server-events/kyuubi_operation/day=20260721/server-*.json \
   | jq 'select(.sessionUser == "alice") | {statement, state, executionDuration, datasourceLabel}'
 ```
 

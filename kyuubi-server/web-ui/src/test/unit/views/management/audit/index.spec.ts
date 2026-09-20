@@ -39,11 +39,12 @@ const auditPage: auditApi.AuditRecordPage = {
       ip: '127.0.0.1',
       proxyIp: '',
       forwardedFor: [],
-      method: 'GET',
-      uri: '/api/v1/admin/audit',
+      method: 'ACTION',
+      uri: '/api/v1/admin/datasources/sample',
       query: 'password=******',
       protocol: 'HTTP/1.1',
-      status: 200
+      status: 200,
+      action: 'datasource.update'
     },
     {
       timestamp: 1_700_000_001_000,
@@ -52,10 +53,11 @@ const auditPage: auditApi.AuditRecordPage = {
       ip: '127.0.0.1',
       proxyIp: '',
       forwardedFor: [],
-      method: 'POST',
-      uri: '/api/v1/admin/refresh/hadoop_conf',
+      method: 'ACTION',
+      uri: '/api/v1/admin/policies',
       protocol: 'HTTP/1.1',
-      status: 500
+      status: 200,
+      action: 'policy.access.replace'
     }
   ],
   total: 2,
@@ -92,21 +94,20 @@ test('loads audit records and exposes the summary page data', async () => {
   expect(pageVm.total).toBe(2)
 })
 
-test('applies user, method, status, and time filters', async () => {
+test('applies user, action, and time filters', async () => {
   const wrapper = mountPage()
   await flushPromises()
   const pageVm = wrapper.vm as any
 
   pageVm.user = 'admin'
-  pageVm.method = 'POST'
-  pageVm.status = '500'
+  pageVm.action = 'datasource'
   pageVm.timeRange = [new Date(1_700_000_000_000), new Date(1_700_000_003_000)]
   await pageVm.loadAudit()
 
   expect(auditApi.getAuditRecords).toHaveBeenLastCalledWith({
     user: 'admin',
-    method: 'POST',
-    status: 500,
+    method: 'ACTION',
+    action: 'datasource',
     from: 1_700_000_000_000,
     to: 1_700_000_003_000,
     limit: 100
@@ -118,14 +119,12 @@ test('resets filters and reloads the audit page', async () => {
   await flushPromises()
   const pageVm = wrapper.vm as any
   pageVm.user = 'admin'
-  pageVm.method = 'GET'
-  pageVm.status = '200'
+  pageVm.action = 'policy'
   pageVm.timeRange = [new Date(), new Date()]
 
   await pageVm.resetFilters()
   expect(pageVm.user).toBe('')
-  expect(pageVm.method).toBe('')
-  expect(pageVm.status).toBe('')
+  expect(pageVm.action).toBe('')
   expect(pageVm.timeRange).toBeNull()
   expect(auditApi.getAuditRecords).toHaveBeenCalledTimes(2)
 })

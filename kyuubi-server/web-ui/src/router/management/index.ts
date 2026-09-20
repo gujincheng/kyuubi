@@ -46,6 +46,10 @@ const router = [
     component: () => import('@/views/management/audit/index.vue')
   },
   {
+    path: '/management/event-audit',
+    redirect: { path: '/management/sql-record' }
+  },
+  {
     path: '/management/permissions',
     redirect: { path: '/management/access', query: { tab: 'roles' } }
   },
@@ -61,8 +65,13 @@ const router = [
   },
   {
     path: '/management/sql-record',
-    name: 'sqlRecord',
+    name: 'queryAudit',
     component: () => import('@/views/management/sql-record/index.vue')
+  },
+  {
+    path: '/management/datasource',
+    name: 'datasource',
+    component: () => import('@/views/management/datasource/index.vue')
   },
   {
     path: '/management/batch',

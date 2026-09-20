@@ -18,29 +18,18 @@
 package org.apache.kyuubi.server.api.v1
 
 import java.io.File
-import javax.ws.rs.{
-  BadRequestException,
-  GET,
-  InternalServerErrorException,
-  Path,
-  Produces,
-  PUT,
-  WebApplicationException}
+import javax.ws.rs.{BadRequestException, GET, InternalServerErrorException, Path, Produces, PUT, WebApplicationException}
 import javax.ws.rs.core.{MediaType, Response}
 
 import io.swagger.v3.oas.annotations.tags.Tag
 
+import org.apache.kyuubi.Utils
 import org.apache.kyuubi.config.KyuubiConf
-import org.apache.kyuubi.config.KyuubiConf.{
-  KYUUBI_CONF_DIR,
-  KYUUBI_CONF_FILE_NAME,
-  KYUUBI_HOME_ENV_VAR_NAME,
-  USER_DEFAULTS_CONF_QUOTE}
+import org.apache.kyuubi.config.KyuubiConf.{KYUUBI_CONF_DIR, KYUUBI_CONF_FILE_NAME, KYUUBI_HOME_ENV_VAR_NAME, USER_DEFAULTS_CONF_QUOTE}
 import org.apache.kyuubi.server.{AdminPermissionService, AdminRole, AuditRecordStore}
 import org.apache.kyuubi.server.api.ApiRequestContext
 import org.apache.kyuubi.session.FileSessionConfAdvisor
 import org.apache.kyuubi.session.KyuubiSessionManager
-import org.apache.kyuubi.Utils
 
 @Tag(name = "Admin Policies")
 @Path("policies")
@@ -86,7 +75,11 @@ private[v1] class AdminPoliciesResource extends ApiRequestContext {
         val update = userDefaults.head
         AdminPoliciesFileStore.updateUserDefaults(configFile, update)
         refreshUserDefaultsConf()
-        auditAction = Some(if (update.delete) "policy.user-default.delete" else "policy.user-default.upsert")
+        auditAction = Some(if (update.delete) {
+          "policy.user-default.delete"
+        } else {
+          "policy.user-default.upsert"
+        })
       } else if (profiles.nonEmpty) {
         if (profiles.size != 1) {
           throw new BadRequestException(
@@ -111,7 +104,7 @@ private[v1] class AdminPoliciesResource extends ApiRequestContext {
               e.message,
               Response.status(Response.Status.CONFLICT).entity(e.message).build())
           case _ => throw new InternalServerErrorException(e.message)
-      }
+        }
     }
     auditAction.foreach(action =>
       AuditRecordStore.appendAction(actor, fe.getIpAddress, action, "/api/v1/admin/policies"))
@@ -154,8 +147,9 @@ private[v1] class AdminPoliciesResource extends ApiRequestContext {
   private def profiles(): Seq[SessionProfile] = {
     configDirectory.toSeq
       .flatMap(directory => Option(directory.listFiles()).toSeq.flatten)
-      .filter(file => file.isFile && file.getName.startsWith("kyuubi-session-") &&
-        file.getName.endsWith(".conf"))
+      .filter(file =>
+        file.isFile && file.getName.startsWith("kyuubi-session-") &&
+          file.getName.endsWith(".conf"))
       .sortBy(_.getName)
       .map { file =>
         val properties = Utils.getPropertiesFromFile(Some(file))
@@ -169,7 +163,8 @@ private[v1] class AdminPoliciesResource extends ApiRequestContext {
   }
 
   private def userDefaults(): Seq[UserDefaults] = {
-    val grouped = scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, String]]()
+    val grouped =
+      scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, String]]()
     fe.getConf.getAllUserDefaults.foreach { case (key, value) =>
       val end = key.indexOf(USER_DEFAULTS_CONF_QUOTE, USER_DEFAULTS_CONF_QUOTE.length)
       if (key.startsWith(USER_DEFAULTS_CONF_QUOTE) && end > USER_DEFAULTS_CONF_QUOTE.length) {
@@ -188,7 +183,11 @@ private[v1] class AdminPoliciesResource extends ApiRequestContext {
 
   private def redact(key: String, value: String): String = {
     if ("(?i).*(password|passwd|secret|token|access[.]key|private[.]key).*".r
-        .pattern.matcher(key).matches()) "******" else value
+        .pattern.matcher(key).matches()) {
+      "******"
+    } else {
+      value
+    }
   }
 
   private def configDirectory: Option[File] = {

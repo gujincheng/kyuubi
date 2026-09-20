@@ -36,72 +36,26 @@ object AuditRecordStore extends Logging {
   private val MaxRecords = 2000
   private val RetentionMillis = 24 * 60 * 60 * 1000L
   private val AuditFileName = "kyuubi-audit.jsonl"
-  private val SensitiveParameter = "(?i)(password|passwd|secret|token|access[.]key|private[.]key|credential)"
-    .r
+  private val SensitiveParameter =
+    "(?i)(password|passwd|secret|token|access[.]key|private[.]key|credential)"
+      .r
   private val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
 
   private val records = ArrayBuffer.empty[AuditRecord]
   private var loadedFile: Option[File] = None
   private var testPersistenceFile: Option[File] = None
 
-  def append(
-      user: String,
-      authType: String,
-      ip: String,
-      proxyIp: String,
-      forwardedFor: Seq[String],
-      method: String,
-      uri: String,
-      query: Option[String],
-      protocol: String,
-      status: Int,
-      timestamp: Long = System.currentTimeMillis()): Unit = {
-    appendRecord(
-      user,
-      authType,
-      ip,
-      proxyIp,
-      forwardedFor,
-      method,
-      uri,
-      query,
-      protocol,
-      status,
-      timestamp,
-      None)
+  def append(record: AuditRecord): Unit = {
+    appendRecord(record)
   }
 
-  private def appendRecord(
-      user: String,
-      authType: String,
-      ip: String,
-      proxyIp: String,
-      forwardedFor: Seq[String],
-      method: String,
-      uri: String,
-      query: Option[String],
-      protocol: String,
-      status: Int,
-      timestamp: Long,
-      action: Option[String]): Unit = synchronized {
-    loadPersisted(timestamp)
-    cleanup(timestamp)
-    val record = AuditRecord(
-      timestamp = timestamp,
-      user = user,
-      authType = authType,
-      ip = ip,
-      proxyIp = proxyIp,
-      forwardedFor = forwardedFor,
-      method = method,
-      uri = uri,
-      query = query.map(redactQuery),
-      protocol = protocol,
-      status = status,
-      action = action)
-    records += record
+  private def appendRecord(record: AuditRecord): Unit = synchronized {
+    loadPersisted(record.timestamp)
+    cleanup(record.timestamp)
+    val stored = record.copy(query = record.query.map(redactQuery))
+    records += stored
     while (records.size > MaxRecords) records.remove(0)
-    persist(record, timestamp)
+    persist(stored, record.timestamp)
   }
 
   def appendAction(
@@ -111,23 +65,25 @@ object AuditRecordStore extends Logging {
       uri: String,
       timestamp: Long = System.currentTimeMillis()): Unit = {
     appendRecord(
-      user = user,
-      authType = "ADMIN",
-      ip = ip,
-      proxyIp = "",
-      forwardedFor = Seq.empty,
-      method = "ACTION",
-      uri = uri,
-      query = None,
-      protocol = "INTERNAL",
-      status = 200,
-      timestamp = timestamp,
-      action = Some(action))
+      AuditRecord(
+        timestamp = timestamp,
+        user = user,
+        authType = "ADMIN",
+        ip = ip,
+        proxyIp = "",
+        forwardedFor = Seq.empty,
+        method = "ACTION",
+        uri = uri,
+        query = None,
+        protocol = "INTERNAL",
+        status = 200,
+        action = Some(action)))
   }
 
   def query(
       user: Option[String] = None,
       method: Option[String] = None,
+      action: Option[String] = None,
       status: Option[Int] = None,
       from: Option[Long] = None,
       to: Option[Long] = None,
@@ -139,6 +95,8 @@ object AuditRecordStore extends Logging {
       .filter { record =>
         user.forall(value => value.isEmpty || record.user == value) &&
         method.forall(value => value.isEmpty || record.method.equalsIgnoreCase(value)) &&
+        action.forall(value =>
+          value.isEmpty || record.action.exists(_.toLowerCase.contains(value.toLowerCase))) &&
         status.forall(_ == record.status) &&
         from.forall(_ <= record.timestamp) &&
         to.forall(_ >= record.timestamp)
@@ -175,7 +133,8 @@ object AuditRecordStore extends Logging {
         records.clear()
       }
       if (file.isFile) {
-        val persisted = Files.readAllLines(file.toPath, StandardCharsets.UTF_8).asScala.flatMap(decode)
+        val persisted = Files.readAllLines(file.toPath, StandardCharsets.UTF_8)
+          .asScala.flatMap(decode)
         records.clear()
         records ++= persisted.filter(_.timestamp >= now - RetentionMillis).takeRight(MaxRecords)
       }

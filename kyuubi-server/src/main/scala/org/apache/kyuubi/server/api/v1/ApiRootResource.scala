@@ -83,6 +83,9 @@ private[v1] class ApiRootResource extends ApiRequestContext {
   @Path("admin/audit")
   def audit: Class[AuditResource] = classOf[AuditResource]
 
+  @Path("admin/event-audit")
+  def eventAudit: Class[NativeAuditResource] = classOf[NativeAuditResource]
+
   @Path("admin/permissions")
   def adminPermissions: Class[AdminPermissionsResource] = classOf[AdminPermissionsResource]
 

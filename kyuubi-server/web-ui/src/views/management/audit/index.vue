@@ -1,29 +1,44 @@
+<!--
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+-->
+
 <script setup lang="ts">
   import { computed, onMounted, ref } from 'vue'
   import { useI18n } from 'vue-i18n'
-  import {
-    getAuditRecords,
-    type AuditRecord,
-    type AuditRecordPage
-  } from '@/api/audit'
+  import { getAuditRecords, type AuditRecordPage } from '@/api/audit'
 
   const { t } = useI18n()
   const loading = ref(false)
   const loadError = ref('')
   const auditPage = ref<AuditRecordPage | null>(null)
   const user = ref('')
-  const method = ref('')
-  const status = ref('')
+  const action = ref('')
   const timeRange = ref<[Date, Date] | null>(null)
   const lastUpdated = ref(0)
 
   const records = computed(() => auditPage.value?.records ?? [])
   const total = computed(() => auditPage.value?.total ?? 0)
-  const successful = computed(
-    () => records.value.filter((record) => record.status < 400).length
+  const actorCount = computed(
+    () =>
+      new Set(records.value.map((record) => record.user).filter(Boolean)).size
   )
-  const failed = computed(
-    () => records.value.filter((record) => record.status >= 400).length
+  const actionCount = computed(
+    () =>
+      new Set(records.value.map((record) => record.action).filter(Boolean)).size
   )
   const configurationText = (key: string, params?: Record<string, unknown>) =>
     t(`management.audit_${key}`, params ?? {})
@@ -34,8 +49,8 @@
     try {
       auditPage.value = await getAuditRecords({
         user: user.value || undefined,
-        method: method.value || undefined,
-        status: status.value ? Number(status.value) : undefined,
+        method: 'ACTION',
+        action: action.value || undefined,
         from: timeRange.value?.[0].getTime(),
         to: timeRange.value?.[1].getTime(),
         limit: 100
@@ -53,8 +68,7 @@
 
   const resetFilters = () => {
     user.value = ''
-    method.value = ''
-    status.value = ''
+    action.value = ''
     timeRange.value = null
     loadAudit()
   }
@@ -66,10 +80,8 @@
     if (code >= 400) return 'warning'
     return 'success'
   }
-  const recordLabel = (record: AuditRecord) =>
-    record.action
-      ? `${record.action} · ${record.method} ${record.uri}`
-      : `${record.method} ${record.uri}`
+  const resultLabel = (code: number) =>
+    code < 400 ? configurationText('success') : configurationText('failure')
 
   onMounted(loadAudit)
 
@@ -80,7 +92,7 @@
     loadAudit,
     resetFilters,
     formatTime,
-    recordLabel
+    resultLabel
   })
 </script>
 
@@ -117,14 +129,14 @@
         ><small>{{ configurationText('total_hint') }}</small></article
       >
       <article class="summary-card accent-green"
-        ><span>{{ configurationText('successful') }}</span
-        ><strong>{{ successful }}</strong
-        ><small>{{ configurationText('successful_hint') }}</small></article
+        ><span>{{ configurationText('actor_count') }}</span
+        ><strong>{{ actorCount }}</strong
+        ><small>{{ configurationText('actor_count_hint') }}</small></article
       >
       <article class="summary-card accent-amber"
-        ><span>{{ configurationText('failed') }}</span
-        ><strong>{{ failed }}</strong
-        ><small>{{ configurationText('failed_hint') }}</small></article
+        ><span>{{ configurationText('action_count') }}</span
+        ><strong>{{ actionCount }}</strong
+        ><small>{{ configurationText('action_count_hint') }}</small></article
       >
       <article class="summary-card accent-cyan"
         ><span>{{ configurationText('retention') }}</span
@@ -150,22 +162,10 @@
           v-model="user"
           clearable
           :placeholder="configurationText('user')" />
-        <el-select
-          v-model="method"
+        <el-input
+          v-model="action"
           clearable
-          :placeholder="configurationText('method')">
-          <el-option label="GET" value="GET" /><el-option
-            label="POST"
-            value="POST" /><el-option label="DELETE" value="DELETE" />
-        </el-select>
-        <el-select
-          v-model="status"
-          clearable
-          :placeholder="configurationText('status')">
-          <el-option :label="configurationText('success_status')" value="200" />
-          <el-option :label="configurationText('client_error')" value="400" />
-          <el-option :label="configurationText('server_error')" value="500" />
-        </el-select>
+          :placeholder="configurationText('action')" />
         <el-date-picker
           v-model="timeRange"
           type="datetimerange"
@@ -206,13 +206,15 @@
             formatTime(scope.row.timestamp)
           }}</template></el-table-column
         >
-        <el-table-column :label="configurationText('request')" min-width="320"
-          ><template #default="scope"
-            ><div class="request-cell"
-              ><strong>{{ recordLabel(scope.row) }}</strong
-              ><small v-if="scope.row.query">{{ scope.row.query }}</small></div
-            ></template
-          ></el-table-column
+        <el-table-column
+          prop="action"
+          :label="configurationText('action_label')"
+          min-width="220" />
+        <el-table-column
+          prop="uri"
+          :label="configurationText('target')"
+          min-width="260"
+          show-overflow-tooltip />
         >
         <el-table-column
           prop="user"
@@ -222,20 +224,16 @@
           prop="ip"
           :label="configurationText('ip')"
           width="150" />
-        <el-table-column :label="configurationText('status')" width="110"
+        <el-table-column :label="configurationText('result')" width="110"
           ><template #default="scope"
             ><el-tag
               :type="statusType(scope.row.status)"
               effect="light"
               round
-              >{{ scope.row.status }}</el-tag
+              >{{ resultLabel(scope.row.status) }}</el-tag
             ></template
           ></el-table-column
         >
-        <el-table-column
-          prop="authType"
-          :label="configurationText('auth')"
-          width="120" />
       </el-table>
       <el-empty
         v-if="!loading && records.length === 0"

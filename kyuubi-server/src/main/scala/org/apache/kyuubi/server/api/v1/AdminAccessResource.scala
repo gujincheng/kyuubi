@@ -264,9 +264,11 @@ private[v1] class AdminAccessResource extends ApiRequestContext {
       active = active,
       restartRequired = false,
       className = className,
-      message = if (active) "Managed authentication is active"
-      else
-        "Managed authentication has not been activated")
+      message = if (active) {
+        "Managed authentication is active"
+      } else {
+        "Managed authentication has not been activated"
+      })
   }
 
   private def providerById(id: String): IdentityProviderConfig = {

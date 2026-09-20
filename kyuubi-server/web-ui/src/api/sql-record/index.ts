@@ -38,6 +38,9 @@ export interface SqlExecutionRecordPage {
   page: number
   pageSize: number
   total: number
+  auditEnabled?: boolean
+  source?: string
+  message?: string
 }
 
 export interface SqlExecutionRecordQuery {

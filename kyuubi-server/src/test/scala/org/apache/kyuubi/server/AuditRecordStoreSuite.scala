@@ -41,17 +41,18 @@ class AuditRecordStoreSuite extends KyuubiFunSuite {
   test("stores newest records and redacts sensitive query parameters") {
     val now = System.currentTimeMillis()
     AuditRecordStore.append(
-      user = "alice",
-      authType = "BASIC",
-      ip = "127.0.0.1",
-      proxyIp = "",
-      forwardedFor = Seq.empty,
-      method = "GET",
-      uri = "/api/v1/admin/audit",
-      query = Some("user=alice&password=plain-text&limit=10"),
-      protocol = "HTTP/1.1",
-      status = 200,
-      timestamp = now)
+      AuditRecord(
+        timestamp = now,
+        user = "alice",
+        authType = "BASIC",
+        ip = "127.0.0.1",
+        proxyIp = "",
+        forwardedFor = Seq.empty,
+        method = "GET",
+        uri = "/api/v1/admin/audit",
+        query = Some("user=alice&password=plain-text&limit=10"),
+        protocol = "HTTP/1.1",
+        status = 200))
 
     val page = AuditRecordStore.query(user = Some("alice"), method = Some("get"))
     assert(page.total === 1)
@@ -63,29 +64,31 @@ class AuditRecordStoreSuite extends KyuubiFunSuite {
   test("drops records outside the retention window") {
     val now = System.currentTimeMillis()
     AuditRecordStore.append(
-      user = "expired",
-      authType = "BASIC",
-      ip = "127.0.0.1",
-      proxyIp = "",
-      forwardedFor = Seq.empty,
-      method = "GET",
-      uri = "/expired",
-      query = None,
-      protocol = "HTTP/1.1",
-      status = 200,
-      timestamp = now - 25 * 60 * 60 * 1000L)
+      AuditRecord(
+        timestamp = now - 25 * 60 * 60 * 1000L,
+        user = "expired",
+        authType = "BASIC",
+        ip = "127.0.0.1",
+        proxyIp = "",
+        forwardedFor = Seq.empty,
+        method = "GET",
+        uri = "/expired",
+        query = None,
+        protocol = "HTTP/1.1",
+        status = 200))
     AuditRecordStore.append(
-      user = "fresh",
-      authType = "BASIC",
-      ip = "127.0.0.1",
-      proxyIp = "",
-      forwardedFor = Seq.empty,
-      method = "GET",
-      uri = "/fresh",
-      query = None,
-      protocol = "HTTP/1.1",
-      status = 200,
-      timestamp = now)
+      AuditRecord(
+        timestamp = now,
+        user = "fresh",
+        authType = "BASIC",
+        ip = "127.0.0.1",
+        proxyIp = "",
+        forwardedFor = Seq.empty,
+        method = "GET",
+        uri = "/fresh",
+        query = None,
+        protocol = "HTTP/1.1",
+        status = 200))
 
     val page = AuditRecordStore.query()
     assert(page.total === 1)
@@ -94,16 +97,18 @@ class AuditRecordStoreSuite extends KyuubiFunSuite {
 
   test("loads records written by another server process") {
     AuditRecordStore.append(
-      user = "persisted",
-      authType = "BASIC",
-      ip = "127.0.0.1",
-      proxyIp = "",
-      forwardedFor = Seq.empty,
-      method = "PUT",
-      uri = "/api/v1/admin/policies",
-      query = None,
-      protocol = "HTTP/1.1",
-      status = 200)
+      AuditRecord(
+        timestamp = System.currentTimeMillis(),
+        user = "persisted",
+        authType = "BASIC",
+        ip = "127.0.0.1",
+        proxyIp = "",
+        forwardedFor = Seq.empty,
+        method = "PUT",
+        uri = "/api/v1/admin/policies",
+        query = None,
+        protocol = "HTTP/1.1",
+        status = 200))
 
     AuditRecordStore.setPersistenceFileForTesting(None)
     AuditRecordStore.setPersistenceFileForTesting(Some(auditFile))
@@ -119,9 +124,13 @@ class AuditRecordStoreSuite extends KyuubiFunSuite {
       action = "policy.access.replace",
       uri = "/api/v1/admin/policies")
 
-    val page = AuditRecordStore.query(method = Some("ACTION"))
+    val page = AuditRecordStore.query(
+      method = Some("ACTION"),
+      action = Some("access"))
     assert(page.total === 1)
     assert(page.records.head.action === Some("policy.access.replace"))
     assert(page.records.head.protocol === "INTERNAL")
+
+    assert(AuditRecordStore.query(action = Some("datasource")).total === 0)
   }
 }

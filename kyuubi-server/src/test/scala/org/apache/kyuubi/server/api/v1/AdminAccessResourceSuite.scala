@@ -80,11 +80,15 @@ class AdminAccessResourceSuite extends KyuubiFunSuite with RestFrontendTestHelpe
     assert(unauthorized.getStatus === 401)
 
     val ldap =
-      s"""{"id":"corp-ldap","name":"Corporate LDAP","providerType":"LDAP","enabled":true,"endpoint":"ldap://127.0.0.1:${ldapServer.getListenPort}","baseDn":"dc=example,dc=com","userDnPattern":"uid={0},ou=users,dc=example,dc=com"}"""
+      s"""{"id":"corp-ldap","name":"Corporate LDAP","providerType":"LDAP","enabled":true,""" +
+        s""""endpoint":"ldap://127.0.0.1:${ldapServer.getListenPort}",""" +
+        s""""baseDn":"dc=example,dc=com",""" +
+        s""""userDnPattern":"uid={0},ou=users,dc=example,dc=com"}"""
     assert(put("api/v1/admin/access/providers", ldap).getStatus === 200)
 
     val iam =
-      s"""{"id":"corp-iam","name":"Corporate IAM","providerType":"IAM","enabled":true,"endpoint":"http://127.0.0.1:${iamServer.getAddress.getPort}"}"""
+      s"""{"id":"corp-iam","name":"Corporate IAM","providerType":"IAM","enabled":true,""" +
+        s""""endpoint":"http://127.0.0.1:${iamServer.getAddress.getPort}"}"""
     assert(put("api/v1/admin/access/providers", iam).getStatus === 200)
 
     val ldapTest = post("api/v1/admin/access/providers/corp-ldap/test", null)
@@ -102,7 +106,9 @@ class AdminAccessResourceSuite extends KyuubiFunSuite with RestFrontendTestHelpe
 
   test("bind an external user and project the binding into Kyuubi policies") {
     val binding =
-      """{"providerId":"corp-ldap","subjectId":"uid=alice,ou=users,dc=example,dc=com","subjectName":"alice","subjectType":"USER","access":"DENIED","role":"viewer","quotaExempt":true,"userDefaults":{"spark.sql.shuffle.partitions":"8"}}"""
+      """{"providerId":"corp-ldap","subjectId":"uid=alice,ou=users,dc=example,dc=com",""" +
+        """"subjectName":"alice","subjectType":"USER","access":"DENIED","role":"viewer",""" +
+        """"quotaExempt":true,"userDefaults":{"spark.sql.shuffle.partitions":"8"}}"""
     val response = put("api/v1/admin/access/bindings", binding)
     assert(response.getStatus === 200)
     val body = response.readEntity(classOf[String])
@@ -135,7 +141,8 @@ class AdminAccessResourceSuite extends KyuubiFunSuite with RestFrontendTestHelpe
     assert(missingAdministrator.readEntity(classOf[String]).contains("platform administrator"))
 
     val binding =
-      """{"providerId":"corp-ldap","subjectId":"uid=alice,ou=users,dc=example,dc=com","subjectName":"alice","subjectType":"USER","access":"ENABLED","role":"platform-admin"}"""
+      """{"providerId":"corp-ldap","subjectId":"uid=alice,ou=users,dc=example,dc=com",""" +
+        """"subjectName":"alice","subjectType":"USER","access":"ENABLED","role":"platform-admin"}"""
     assert(put("api/v1/admin/access/bindings", binding).getStatus === 200)
 
     val valid = post("api/v1/admin/access/activate", null)
@@ -213,11 +220,13 @@ class AdminAccessResourceSuite extends KyuubiFunSuite with RestFrontendTestHelpe
     iamServer.createContext(
       "/users",
       jsonHandler(
-        """{"users":[{"id":"iam-1","username":"bob","displayName":"Bob Li","email":"bob@example.com"}]}"""))
+        """{"users":[{"id":"iam-1","username":"bob",""" +
+          """"displayName":"Bob Li","email":"bob@example.com"}]}"""))
     iamServer.createContext(
       "/groups",
       jsonHandler(
-        """{"groups":[{"id":"group-1","name":"analysts","displayName":"Analysts","members":["bob"]}]}"""))
+        """{"groups":[{"id":"group-1","name":"analysts",""" +
+          """"displayName":"Analysts","members":["bob"]}]}"""))
     iamServer.createContext(
       "/authenticate",
       new HttpHandler {

@@ -242,7 +242,8 @@ private[server] object IdentityAccessStore {
     if (binding.subjectType != "USER") {
       throw new IllegalArgumentException("Only USER bindings are supported")
     }
-    if (binding.subjectId == null || binding.subjectId.trim.isEmpty || binding.subjectId.length > 512) {
+    if (binding.subjectId == null || binding.subjectId.trim.isEmpty ||
+      binding.subjectId.length > 512) {
       throw new IllegalArgumentException("Identity subject id must be between 1 and 512 characters")
     }
     if (binding.subjectName == null || binding.subjectName.trim.isEmpty ||

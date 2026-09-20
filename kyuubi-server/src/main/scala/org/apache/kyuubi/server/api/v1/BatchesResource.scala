@@ -44,8 +44,8 @@ import org.apache.kyuubi.config.KyuubiConf._
 import org.apache.kyuubi.config.KyuubiReservedKeys._
 import org.apache.kyuubi.engine._
 import org.apache.kyuubi.operation.{BatchJobSubmission, FetchOrientation, OperationState}
-import org.apache.kyuubi.server.api.ApiRequestContext
 import org.apache.kyuubi.server.{AdminPermissionService, AdminRole}
+import org.apache.kyuubi.server.api.ApiRequestContext
 import org.apache.kyuubi.server.api.v1.BatchesResource._
 import org.apache.kyuubi.server.metadata.MetadataManager
 import org.apache.kyuubi.server.metadata.api.{Metadata, MetadataFilter}

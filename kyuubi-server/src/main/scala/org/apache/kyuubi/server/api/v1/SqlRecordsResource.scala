@@ -17,12 +17,12 @@
 
 package org.apache.kyuubi.server.api.v1
 
-import javax.ws.rs.core.MediaType
 import javax.ws.rs.{DefaultValue, GET, NotFoundException, Path, PathParam, Produces, QueryParam}
+import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.kyuubi.server.{AdminPermissionService, AdminRole, SqlExecutionRecord, SqlExecutionRecordPage, SqlExecutionRecordStore}
+import org.apache.kyuubi.server.{AdminPermissionService, AdminRole, SqlExecutionRecord, SqlExecutionRecordPage, SqlExecutionRecordService}
 import org.apache.kyuubi.server.api.ApiRequestContext
 
 @Tag(name = "SQLRecord")
@@ -41,7 +41,7 @@ private[v1] class SqlRecordsResource extends ApiRequestContext {
       @QueryParam("fromTime") fromTime: Long,
       @QueryParam("toTime") toTime: Long): SqlExecutionRecordPage = {
     ensureAdministrator()
-    SqlExecutionRecordStore.list(
+    SqlExecutionRecordService.list(
       page,
       pageSize,
       nonEmpty(user),
@@ -57,7 +57,7 @@ private[v1] class SqlRecordsResource extends ApiRequestContext {
   @Path("{id}")
   def detail(@PathParam("id") id: String): SqlExecutionRecord = {
     ensureAdministrator()
-    SqlExecutionRecordStore.get(id).getOrElse {
+    SqlExecutionRecordService.get(id).getOrElse {
       throw new NotFoundException(s"SQL execution record $id does not exist")
     }
   }

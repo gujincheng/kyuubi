@@ -17,7 +17,7 @@
 
 package org.apache.kyuubi.digiwin.datasource
 
-import java.sql.{Connection, ResultSet}
+import java.sql.{Connection, ResultSet, SQLException}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -76,6 +76,27 @@ class DatasourceStore(conf: KyuubiConf) extends Logging {
             |  update_time BIGINT NOT NULL
             |)
             |""".stripMargin)
+        stmt.execute(
+          """
+            |CREATE TABLE IF NOT EXISTS digiwin_datasource_property(
+            |  label VARCHAR(128) NOT NULL,
+            |  property_key VARCHAR(255) NOT NULL,
+            |  property_value TEXT NOT NULL,
+            |  PRIMARY KEY(label, property_key)
+            |)
+            |""".stripMargin)
+        stmt.execute(
+          """
+            |CREATE TABLE IF NOT EXISTS digiwin_storage_credential(
+            |  credential_id VARCHAR(128) PRIMARY KEY,
+            |  provider VARCHAR(32) NOT NULL,
+            |  encrypted_access_key_id TEXT NOT NULL,
+            |  encrypted_secret_access_key TEXT NOT NULL,
+            |  encrypted_session_token TEXT,
+            |  description VARCHAR(1024),
+            |  version BIGINT NOT NULL
+            |)
+            |""".stripMargin)
       } finally {
         stmt.close()
       }
@@ -124,12 +145,85 @@ class DatasourceStore(conf: KyuubiConf) extends Logging {
       description = rs.getString("description"))
   }
 
+  private def properties(conn: Connection, label: String): Map[String, String] =
+    query(
+      conn,
+      "SELECT property_key, property_value FROM digiwin_datasource_property WHERE label = ?",
+      label) { rs =>
+      rs.getString("property_key") -> rs.getString("property_value")
+    }.toMap
+
   def list(): Seq[DatasourceInfo] = withConnection { conn =>
     query(conn, "SELECT * FROM digiwin_datasource ORDER BY label")(fromResultSet)
+      .map(ds => ds.copy(properties = properties(conn, ds.label)))
   }
 
   def get(label: String): Option[DatasourceInfo] = withConnection { conn =>
-    query(conn, "SELECT * FROM digiwin_datasource WHERE label = ?", label)(fromResultSet).headOption
+    query(conn, "SELECT * FROM digiwin_datasource WHERE label = ?", label)(fromResultSet)
+      .headOption.map(ds => ds.copy(properties = properties(conn, ds.label)))
+  }
+
+  private def fromStorageCredentialResultSet(rs: ResultSet): StoredStorageCredential =
+    StoredStorageCredential(
+      id = rs.getString("credential_id"),
+      provider = rs.getString("provider"),
+      encryptedAccessKeyId = rs.getString("encrypted_access_key_id"),
+      encryptedSecretAccessKey = rs.getString("encrypted_secret_access_key"),
+      encryptedSessionToken = Option(rs.getString("encrypted_session_token")).getOrElse(""),
+      description = Option(rs.getString("description")).getOrElse(""),
+      version = rs.getLong("version"))
+
+  def listStorageCredentials(): Seq[StoredStorageCredential] = withConnection { conn =>
+    query(conn, "SELECT * FROM digiwin_storage_credential ORDER BY credential_id")(
+      fromStorageCredentialResultSet)
+  }
+
+  def getStorageCredential(id: String): Option[StoredStorageCredential] = withConnection {
+    conn =>
+      query(conn, "SELECT * FROM digiwin_storage_credential WHERE credential_id = ?", id)(
+        fromStorageCredentialResultSet).headOption
+  }
+
+  def upsertStorageCredential(credential: StoredStorageCredential): Unit = withConnection {
+    conn =>
+      val sql =
+        """
+          |INSERT INTO digiwin_storage_credential
+          |(credential_id, provider, encrypted_access_key_id, encrypted_secret_access_key,
+          | encrypted_session_token, description, version)
+          |VALUES(?, ?, ?, ?, ?, ?, ?)
+          |ON CONFLICT(credential_id) DO UPDATE SET
+          |provider=excluded.provider,
+          |encrypted_access_key_id=excluded.encrypted_access_key_id,
+          |encrypted_secret_access_key=excluded.encrypted_secret_access_key,
+          |encrypted_session_token=excluded.encrypted_session_token,
+          |description=excluded.description,
+          |version=excluded.version
+          |""".stripMargin
+      val ps = conn.prepareStatement(sql)
+      try {
+        ps.setString(1, credential.id)
+        ps.setString(2, credential.provider)
+        ps.setString(3, credential.encryptedAccessKeyId)
+        ps.setString(4, credential.encryptedSecretAccessKey)
+        ps.setString(5, credential.encryptedSessionToken)
+        ps.setString(6, credential.description)
+        ps.setLong(7, credential.version)
+        ps.executeUpdate()
+      } finally {
+        ps.close()
+      }
+  }
+
+  def deleteStorageCredential(id: String): Unit = withConnection { conn =>
+    val ps = conn.prepareStatement(
+      "DELETE FROM digiwin_storage_credential WHERE credential_id = ?")
+    try {
+      ps.setString(1, id)
+      ps.executeUpdate()
+    } finally {
+      ps.close()
+    }
   }
 
   def upsert(ds: DatasourceInfo): Unit = withConnection { conn =>
@@ -146,6 +240,7 @@ class DatasourceStore(conf: KyuubiConf) extends Logging {
         |connection_pool_params=excluded.connection_pool_params,
         |status=excluded.status, description=excluded.description, update_time=excluded.update_time
         |""".stripMargin
+    conn.setAutoCommit(false)
     val ps = conn.prepareStatement(sql)
     try {
       ps.setString(1, ds.label)
@@ -160,18 +255,64 @@ class DatasourceStore(conf: KyuubiConf) extends Logging {
       ps.setString(10, ds.description)
       ps.setLong(11, System.currentTimeMillis())
       ps.executeUpdate()
+      replaceProperties(conn, ds)
+      conn.commit()
+    } catch {
+      case error: SQLException =>
+        conn.rollback()
+        throw error
     } finally {
       ps.close()
+      conn.setAutoCommit(true)
+    }
+  }
+
+  private def replaceProperties(conn: Connection, ds: DatasourceInfo): Unit = {
+    val delete = conn.prepareStatement(
+      "DELETE FROM digiwin_datasource_property WHERE label = ?")
+    try {
+      delete.setString(1, ds.label)
+      delete.executeUpdate()
+    } finally {
+      delete.close()
+    }
+    if (ds.properties.nonEmpty) {
+      val insert = conn.prepareStatement(
+        "INSERT INTO digiwin_datasource_property(label, property_key, property_value) " +
+          "VALUES(?, ?, ?)")
+      try {
+        ds.properties.toSeq.sortBy(_._1).foreach { case (key, value) =>
+          insert.setString(1, ds.label)
+          insert.setString(2, key)
+          insert.setString(3, value)
+          insert.addBatch()
+        }
+        insert.executeBatch()
+      } finally {
+        insert.close()
+      }
     }
   }
 
   def delete(label: String): Unit = withConnection { conn =>
-    val ps = conn.prepareStatement("DELETE FROM digiwin_datasource WHERE label = ?")
+    conn.setAutoCommit(false)
+    val properties = conn.prepareStatement(
+      "DELETE FROM digiwin_datasource_property WHERE label = ?")
+    val datasource = conn.prepareStatement("DELETE FROM digiwin_datasource WHERE label = ?")
     try {
-      ps.setString(1, label)
-      ps.executeUpdate()
+      properties.setString(1, label)
+      properties.executeUpdate()
+      datasource.setString(1, label)
+      datasource.executeUpdate()
+      conn.commit()
+    } catch {
+      case error: SQLException =>
+        conn.rollback()
+        throw error
     } finally {
-      ps.close()
+      properties.close()
+      datasource.close()
+      conn.setAutoCommit(true)
     }
   }
 

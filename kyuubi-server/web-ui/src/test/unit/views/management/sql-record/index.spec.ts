@@ -21,37 +21,87 @@ import ElementPlus from 'element-plus'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import SqlRecord from '@/views/management/sql-record/index.vue'
-import * as sqlRecordApi from '@/api/sql-record'
+import * as auditApi from '@/api/audit'
 import { createI18n, getStore } from '@/test/unit/utils'
 
-vi.mock('@/api/sql-record', async () => {
+vi.mock('@/api/audit', async () => {
   const actual =
-    await vi.importActual<typeof import('@/api/sql-record')>('@/api/sql-record')
-  return { ...actual, getSqlExecutionRecords: vi.fn() }
+    await vi.importActual<typeof import('@/api/audit')>('@/api/audit')
+  return {
+    ...actual,
+    getNativeAuditActivities: vi.fn(),
+    getNativeAuditEvents: vi.fn(),
+    getNativeAuditConfig: vi.fn()
+  }
 })
 
-const record: sqlRecordApi.SqlExecutionRecord = {
-  id: 'op-1',
+const record: auditApi.NativeAuditActivity = {
+  id: 'operation:op-1',
+  eventType: 'kyuubi_operation',
+  eventTypes: ['kyuubi_operation'],
   statement: 'select 1',
-  statementSummary: 'select 1',
   user: 'alice',
   sessionId: 'session-1',
+  operationId: 'op-1',
   engineType: 'JDBC',
   state: 'FINISHED_STATE',
   createTime: 1_700_000_000_000,
   startTime: 1_700_000_000_050,
   completeTime: 1_700_000_001_050,
-  queueWaitTimeMs: 50,
-  executionDurationMs: 1000,
-  errorMessage: ''
+  duration: 1000,
+  error: '',
+  eventCount: 3
+}
+
+const auditEvent: auditApi.NativeAuditEvent = {
+  id: 'audit-1',
+  source: 'JSON',
+  eventType: 'kyuubi_operation',
+  eventTime: 1_700_000_001_050,
+  createTime: 1_700_000_000_000,
+  startTime: 1_700_000_000_050,
+  completeTime: 1_700_000_001_050,
+  user: 'alice',
+  status: 'FINISHED_STATE',
+  statement: 'select 1',
+  sessionId: 'session-1',
+  operationId: 'op-1',
+  clientIp: '127.0.0.1',
+  datasourceLabel: '',
+  engineType: 'JDBC',
+  duration: 1000,
+  error: '',
+  rawJson: '{}'
 }
 
 beforeEach(() => {
-  vi.mocked(sqlRecordApi.getSqlExecutionRecords).mockResolvedValue({
+  vi.mocked(auditApi.getNativeAuditActivities).mockResolvedValue({
     records: [record],
     page: 1,
     pageSize: 20,
-    total: 1
+    total: 1,
+    auditEnabled: true,
+    source: 'JSON',
+    message: 'active'
+  })
+  vi.mocked(auditApi.getNativeAuditConfig).mockResolvedValue({
+    enabled: true,
+    mode: 'JSON',
+    jsonPath: 'file:///tmp/events',
+    retentionDays: 7,
+    kafka: {} as auditApi.AuditKafkaConfig,
+    passwordConfigured: false,
+    truststorePasswordConfigured: false,
+    updatedAt: 0,
+    healthy: true,
+    message: 'active'
+  })
+  vi.mocked(auditApi.getNativeAuditEvents).mockResolvedValue({
+    records: [auditEvent],
+    total: 1,
+    generatedAt: 1_700_000_001_050,
+    source: 'JSON',
+    message: 'active'
   })
 })
 
@@ -79,20 +129,22 @@ test('loads and renders SQL execution records', async () => {
   const wrapper = mountPage()
   await flushPromises()
 
-  expect(sqlRecordApi.getSqlExecutionRecords).toHaveBeenCalledWith({
+  expect(auditApi.getNativeAuditActivities).toHaveBeenCalledWith({
     page: 1,
     pageSize: 20,
     keyword: undefined,
     user: undefined,
-    sessionId: undefined,
-    engineType: undefined,
-    state: undefined,
-    fromTime: undefined,
-    toTime: undefined
+    eventType: undefined,
+    status: undefined,
+    from: undefined,
+    to: undefined
   })
-  expect(wrapper.text()).toContain('SQL execution records')
+  expect(wrapper.text()).toContain('Query & audit')
   expect((wrapper.vm as any).records).toEqual([record])
   expect((wrapper.vm as any).total).toBe(1)
+  expect((wrapper.vm as any).formatTime(record.createTime)).toMatch(
+    /\.\d{3}$/
+  )
 })
 
 test('applies filters from the search action', async () => {
@@ -107,16 +159,15 @@ test('applies filters from the search action', async () => {
   pageVm.filters.state = 'ERROR_STATE'
   await pageVm.search()
 
-  expect(sqlRecordApi.getSqlExecutionRecords).toHaveBeenLastCalledWith({
+  expect(auditApi.getNativeAuditActivities).toHaveBeenLastCalledWith({
     page: 1,
     pageSize: 20,
     keyword: 'select',
     user: 'alice',
-    sessionId: 'session-1',
-    engineType: 'JDBC',
-    state: 'ERROR_STATE',
-    fromTime: undefined,
-    toTime: undefined
+    eventType: undefined,
+    status: 'ERROR_STATE',
+    from: undefined,
+    to: undefined
   })
 })
 
@@ -127,26 +178,28 @@ test('auto refreshes records while keeping the active filters', async () => {
 
   const pageVm = wrapper.vm as any
   pageVm.filters.keyword = 'select'
-  vi.mocked(sqlRecordApi.getSqlExecutionRecords).mockResolvedValue({
+  vi.mocked(auditApi.getNativeAuditActivities).mockResolvedValue({
     records: [{ ...record, state: 'RUNNING_STATE' }],
     page: 1,
     pageSize: 20,
-    total: 1
+    total: 1,
+    auditEnabled: true,
+    source: 'JSON',
+    message: 'active'
   })
 
   await vi.advanceTimersByTimeAsync(30_000)
   await flushPromises()
 
-  expect(sqlRecordApi.getSqlExecutionRecords).toHaveBeenLastCalledWith({
+  expect(auditApi.getNativeAuditActivities).toHaveBeenLastCalledWith({
     page: 1,
     pageSize: 20,
     keyword: 'select',
     user: undefined,
-    sessionId: undefined,
-    engineType: undefined,
-    state: undefined,
-    fromTime: undefined,
-    toTime: undefined
+    eventType: undefined,
+    status: undefined,
+    from: undefined,
+    to: undefined
   })
   expect(pageVm.filters.keyword).toBe('select')
   expect(pageVm.records[0].state).toBe('RUNNING_STATE')
@@ -156,7 +209,7 @@ test('keeps existing records when a refresh fails', async () => {
   const wrapper = mountPage()
   await flushPromises()
 
-  vi.mocked(sqlRecordApi.getSqlExecutionRecords).mockRejectedValueOnce(
+  vi.mocked(auditApi.getNativeAuditActivities).mockRejectedValueOnce(
     new Error('temporary unavailable')
   )
   await (wrapper.vm as any).loadRecords()
@@ -180,16 +233,15 @@ test('exports the active filters with the bounded CSV page', async () => {
   pageVm.filters.keyword = 'select'
   await pageVm.exportRecords()
 
-  expect(sqlRecordApi.getSqlExecutionRecords).toHaveBeenLastCalledWith({
+  expect(auditApi.getNativeAuditActivities).toHaveBeenLastCalledWith({
     page: 1,
     pageSize: 200,
     keyword: 'select',
     user: undefined,
-    sessionId: undefined,
-    engineType: undefined,
-    state: undefined,
-    fromTime: undefined,
-    toTime: undefined
+    eventType: undefined,
+    status: undefined,
+    from: undefined,
+    to: undefined
   })
   expect(createObjectURL).toHaveBeenCalledOnce()
   expect(clickSpy).toHaveBeenCalledOnce()
@@ -203,15 +255,17 @@ test('shows diagnostics and timing details for failed records', async () => {
     ...record,
     state: 'ERROR_STATE',
     completeTime: 1_700_000_001_250,
-    queueWaitTimeMs: 200,
-    executionDurationMs: 1000,
-    errorMessage: 'syntax error near FROM'
+    duration: 1000,
+    error: 'syntax error near FROM'
   }
-  vi.mocked(sqlRecordApi.getSqlExecutionRecords).mockResolvedValueOnce({
+  vi.mocked(auditApi.getNativeAuditActivities).mockResolvedValueOnce({
     records: [failedRecord],
     page: 1,
     pageSize: 20,
-    total: 1
+    total: 1,
+    auditEnabled: true,
+    source: 'JSON',
+    message: 'active'
   })
   const wrapper = mountPage()
   await flushPromises()
@@ -220,7 +274,7 @@ test('shows diagnostics and timing details for failed records', async () => {
   await flushPromises()
 
   expect((wrapper.vm as any).selectedRecord).toEqual(failedRecord)
-  expect((wrapper.vm as any).selectedRecord.errorMessage).toBe(
+  expect((wrapper.vm as any).selectedRecord.error).toBe(
     'syntax error near FROM'
   )
   expect((wrapper.vm as any).diagnosisLabel('RUNNING_STATE')).toBe(
@@ -228,4 +282,13 @@ test('shows diagnostics and timing details for failed records', async () => {
   )
   expect((wrapper.vm as any).totalDuration(failedRecord)).toBe(1250)
   expect((wrapper.vm as any).durationHint(failedRecord)).toContain('Completed')
+  expect(auditApi.getNativeAuditEvents).toHaveBeenCalledWith({
+    eventType: 'kyuubi_operation',
+    operationId: 'op-1',
+    sessionId: 'session-1',
+    from: 1_699_999_940_000,
+    to: 1_700_000_061_250,
+    limit: 100
+  })
+  expect((wrapper.vm as any).auditTrail).toEqual([auditEvent])
 })

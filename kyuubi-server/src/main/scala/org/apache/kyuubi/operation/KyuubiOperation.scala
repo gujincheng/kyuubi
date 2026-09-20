@@ -31,7 +31,6 @@ import org.apache.kyuubi.metrics.MetricsConstants.{OPERATION_FAIL, OPERATION_OPE
 import org.apache.kyuubi.metrics.MetricsSystem
 import org.apache.kyuubi.operation.FetchOrientation.FetchOrientation
 import org.apache.kyuubi.operation.OperationState.OperationState
-import org.apache.kyuubi.server.SqlExecutionRecordStore
 import org.apache.kyuubi.session.{AbstractSession, KyuubiSession, KyuubiSessionImpl, KyuubiSessionManager, Session}
 import org.apache.kyuubi.shaded.hive.service.rpc.thrift._
 import org.apache.kyuubi.shaded.thrift.TException
@@ -228,9 +227,6 @@ abstract class KyuubiOperation(session: Session) extends AbstractOperation(sessi
       ms.markMeter(MetricRegistry.name(OPERATION_STATE, newState.toString.toLowerCase))
     }
     super.setState(newState)
-    if (opType == "ExecuteStatement") {
-      SqlExecutionRecordStore.record(getOperationEvent)
-    }
     if (eventEnabled) EventBus.post(getOperationEvent)
   }
 

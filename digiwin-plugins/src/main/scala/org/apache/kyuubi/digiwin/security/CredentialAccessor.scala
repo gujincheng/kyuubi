@@ -72,6 +72,15 @@ object CredentialAccessor extends Logging {
   }
 
   def apply(secretOpt: Option[String]): CredentialAccessor = secretOpt match {
+    case Some(s) if s.startsWith("env:") =>
+      val envName = s.stripPrefix("env:").trim
+      require(
+        envName.matches("[A-Za-z_][A-Za-z0-9_]*"),
+        s"Invalid credential secret environment variable name: $envName")
+      new CredentialAccessor(sys.env.getOrElse(
+        envName,
+        throw new IllegalArgumentException(
+          s"Credential secret environment variable is not set: $envName")))
     case Some(s) => new CredentialAccessor(s)
     case None =>
       warn("kyuubi.digiwin.datasource.credential.secret is unset; " +

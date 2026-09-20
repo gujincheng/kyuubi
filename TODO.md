@@ -76,6 +76,16 @@
 
 ## 管理能力
 
+- [x] 数据源管理
+  - 新增现代化 Data Source 页面，支持 JDBC 与 Iceberg 数据源新增、编辑、详情、启停、删除、搜索和类型/状态筛选
+  - 提供 StarRocks、MySQL、PostgreSQL、Oracle、SQLite 和通用 JDBC 模板，统一维护驱动、URL、账号、凭据及连接池参数
+  - Iceberg 数据源统一维护 Hive Metastore、Warehouse、S3 Endpoint 和 Session Profile；会话只传数据源标识，网关自动切换 Spark SQL Engine 并注入 Catalog 配置
+  - 以数据源及最终配置指纹隔离 Spark Engine，避免不同 Iceberg Catalog 或资源规格错误复用同一引擎
+  - 新增保存前测试和已保存数据源测试，返回数据库产品、版本、耗时及明确失败原因；停用数据源仍允许管理员执行连接诊断
+  - 密码仅提交到服务端加密存储，REST 不返回明文或密文；编辑时留空保持原凭据，新建空密码不生成伪凭据
+  - JDBC URL 禁止内嵌 password/passwd/pwd，连接池参数使用白名单和范围校验，避免覆盖 Kyuubi 保留配置
+  - 已通过插件测试 15/15、REST 集成测试 9/9、前端单测 7/7、真实 SQLite 持久化对账和浏览器端到端验证
+  - 已从页面创建 Iceberg 数据源并连接 `172.16.7.137:9083`，通过 Beeline 完成建库、建表、写入、查询和清理；查询返回 `2 / created-from-page`
 - [x] Session、Operation、Engine、Server 管理页面补齐真实操作和状态展示
   - [x] Session 管理页面：真实筛选、自动刷新、状态/统计展示、详情抽屉和关闭 Session
   - 已通过 Session 页面单测（5/5）、`vue-tsc`、ESLint 和生产构建
@@ -109,19 +119,28 @@
   - 已通过真实浏览器端到端验证：页面真实数据加载、受控刷新、更新时间和成功提示，浏览器错误日志为空
   - 已通过前端配置页单测 4/4；前端全量单测 20 个文件、126/126 用例通过
   - 已通过 ESLint、`vue-tsc` 和生产构建；测试环境补充有效 `localStorage` 隔离实现
-- [x] 审计日志和操作记录
+- [x] 管理审计
   - 复用现有 `AuthenticationAuditLogger`，记录 HTTP/Thrift 请求的用户、认证方式、客户端 IP、代理链、请求方法、URI、查询参数、协议和响应状态
   - 新增有界审计存储：最多 2000 条、保留 24 小时，支持 JSONL 文件持久化；通过 `KYUUBI_AUDIT_LOG_PATH` 指定文件，未指定时使用 `$KYUUBI_HOME/logs/kyuubi-audit.jsonl`
   - 共享文件使用文件锁和实例间重新加载，支持多个 Kyuubi Server 进程读取同一份审计记录；敏感查询参数统一脱敏
   - 新增管理员接口 `GET /api/v1/admin/audit`，支持用户、请求方法、状态码、时间范围和条数筛选
   - 管理员策略新增、修改、删除写入 `ACTION` 审计记录，页面展示具体动作标识
-  - 新增现代化只读 Audit Log 页面，展示成功/异常统计、请求轨迹、筛选条件、刷新和空/错误状态
+  - 新增现代化只读 Management Audit 页面，以管理员动作、操作对象、操作者、客户端 IP 和结果为主视角
   - 后端审计存储测试 4/4 通过，覆盖持久化加载、脱敏、过期清理和管理员动作记录；管理 REST 测试覆盖鉴权和筛选
   - 已通过真实 REST 验证：接口结构、请求记录、筛选和 `password=******` 脱敏均正确
   - 已通过真实隔离实例端到端验证：策略 PUT 返回 200 并产生 `policy.access.replace` 动作记录；服务重启后按 `method=ACTION` 仍可读取同 2 条记录
   - 已通过真实浏览器端到端验证：页面加载、刷新、用户筛选、真实数据展示和浏览器错误日志检查
   - 已通过前端审计页单测 4/4；前端全量单测 20 个文件、126/126 用例通过
   - 已通过 ESLint、`vue-tsc` 和生产构建；浏览器端到端验证记录在上方
+- [x] Kyuubi 原生 Audit Log
+  - 复用 Kyuubi `KyuubiEvent` 与原生 JSON/Kafka EventHandler，采集 Server、Session、Operation 和 SQL 拦截事件，不重复计算 SQL 生命周期
+  - 新增 Audit Log 页面，可选择 JSON 文件或 Kafka，配置存储参数、测试连通性、启停审计并立即生效，无需重启 Server
+  - JSON 查询直接读取事件目录；Kafka 查询直接消费 Topic；切换存储方式不会迁移或删除原存储中的历史事件
+  - Kafka 支持 PLAINTEXT、SSL、SASL_PLAINTEXT、SASL_SSL 及 PLAIN/SCRAM，密码加密保存，接口和原始事件统一脱敏
+  - 新增 `/api/v1/admin/event-audit/config`、`/test`、`/events` 管理接口，并将配置变更写入管理审计
+  - 后端定向测试 8/8、前端定向测试 5/5、Spotless、ESLint、类型检查和生产构建通过
+  - 已完成 JSON 与 Kafka 真实端到端验证：Beeline SQL 返回正确结果，页面接口按同一 operationId 读取 INITIALIZED、PENDING、RUNNING、FINISHED、CLOSED 五个原生状态
+  - 已使用本机 Chrome 真实渲染验证记录列表、状态徽标、空值展示和后端真实数据加载
 
 ## 细粒度管理员权限
 

@@ -4308,8 +4308,19 @@ object KyuubiConf {
     buildConf("kyuubi.digiwin.datasource.credential.secret")
       .doc("AES secret (16 bytes in UTF-8) used to encrypt/decrypt datasource credentials. " +
         "If unset, a random key is generated per process and encrypted credentials won't " +
-        "survive a restart; set a stable secret for any persistent store.")
+        "survive a restart; set a stable secret for any persistent store. " +
+        "Use env:VARIABLE_NAME to load the secret from the process environment.")
       .version("1.11.2")
+      .audience(SERVER)
+      .immutable
+      .stringConf
+      .createOptional
+
+  val DIGIWIN_DATASOURCE_BOOTSTRAP_FILE: OptionalConfigEntry[String] =
+    buildConf("kyuubi.digiwin.datasource.bootstrap.file")
+      .doc("Optional properties file used to bootstrap datasource definitions at server startup. " +
+        "Passwords and object-storage credentials are referenced by environment variable name.")
+      .version("1.12.0")
       .audience(SERVER)
       .immutable
       .stringConf

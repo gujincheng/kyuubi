@@ -34,6 +34,7 @@ private[v1] class AuditResource extends ApiRequestContext {
   def audit(
       @QueryParam("user") user: String,
       @QueryParam("method") method: String,
+      @QueryParam("action") action: String,
       @QueryParam("status") status: String,
       @QueryParam("from") from: String,
       @QueryParam("to") to: String,
@@ -42,6 +43,7 @@ private[v1] class AuditResource extends ApiRequestContext {
     AuditRecordStore.query(
       user = nonEmpty(user),
       method = nonEmpty(method),
+      action = nonEmpty(action),
       status = parseInt(status, "status"),
       from = parseLong(from, "from"),
       to = parseLong(to, "to"),

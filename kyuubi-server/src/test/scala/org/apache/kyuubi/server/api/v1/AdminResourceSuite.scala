@@ -141,9 +141,9 @@ class AdminResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper {
 
   test("update admin policies requires administrator and exactly one policy domain") {
     val body = """{
-      |  "access": {"unlimitedUsers": [], "denyUsers": [], "denyIps": []},
-      |  "profiles": [{"name": "analyst", "properties": {}}]
-      |}""".stripMargin
+                 |  "access": {"unlimitedUsers": [], "denyUsers": [], "denyIps": []},
+                 |  "profiles": [{"name": "analyst", "properties": {}}]
+                 |}""".stripMargin
 
     var response = webTarget.path("api/v1/admin/policies")
       .request(MediaType.APPLICATION_JSON_TYPE)

@@ -81,12 +81,14 @@ class IdentityDirectoryServiceSuite extends KyuubiFunSuite {
       "/users",
       jsonHandler(
         200,
-        """{"users":[{"id":"iam-1","username":"bob","displayName":"Bob Li","email":"bob@example.com","groups":["analysts"]}]}"""))
+        """{"users":[{"id":"iam-1","username":"bob",""" +
+          """"displayName":"Bob Li","email":"bob@example.com","groups":["analysts"]}]}"""))
     iamServer.createContext(
       "/groups",
       jsonHandler(
         200,
-        """{"groups":[{"id":"group-1","name":"analysts","displayName":"Analysts","members":["bob"]}]}"""))
+        """{"groups":[{"id":"group-1","name":"analysts",""" +
+          """"displayName":"Analysts","members":["bob"]}]}"""))
     iamServer.createContext(
       "/authenticate",
       new HttpHandler {

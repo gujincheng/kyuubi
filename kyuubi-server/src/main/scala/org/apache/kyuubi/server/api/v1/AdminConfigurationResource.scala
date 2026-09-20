@@ -23,7 +23,7 @@ import javax.ws.rs.core.MediaType
 import io.swagger.v3.oas.annotations.tags.Tag
 
 import org.apache.kyuubi.Utils
-import org.apache.kyuubi.config.KyuubiConf.{SERVER_ADMINISTRATORS, USER_DEFAULTS_CONF_QUOTE}
+import org.apache.kyuubi.config.KyuubiConf.{AUTHENTICATION_METHOD, SERVER_ADMINISTRATORS, USER_DEFAULTS_CONF_QUOTE}
 import org.apache.kyuubi.server.{AdminPermissionService, AdminRole}
 import org.apache.kyuubi.server.api.ApiRequestContext
 
@@ -56,13 +56,16 @@ private[v1] class AdminConfigurationResource extends ApiRequestContext {
     AdminConfiguration(
       currentUser = userName,
       securityEnabled = fe.securityEnabled,
-      authenticationMethods = fe.getConf.get(org.apache.kyuubi.config.KyuubiConf.AUTHENTICATION_METHOD),
+      authenticationMethods = fe.getConf.get(AUTHENTICATION_METHOD),
       administrators = administrators,
       categories = categories,
       entries = entries,
       reloads = Seq(
         ReloadAction("hadoop_conf", "Hadoop configuration", "admin/refresh/hadoop_conf"),
-        ReloadAction("kubernetes_conf", "Kubernetes configuration", "admin/refresh/kubernetes_conf"),
+        ReloadAction(
+          "kubernetes_conf",
+          "Kubernetes configuration",
+          "admin/refresh/kubernetes_conf"),
         ReloadAction("user_defaults_conf", "User defaults", "admin/refresh/user_defaults_conf"),
         ReloadAction("access_policies", "Access policies", "admin/refresh/unlimited_users")))
   }

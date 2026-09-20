@@ -71,14 +71,14 @@ private[server] object AdminRole {
 
   case object Viewer extends AdminRole(
       ViewerName,
-      "只读管理员",
-      "可以查看管理数据，但不能改变运行状态",
+      "Read-only Admin",
+      "Can view management data but cannot change runtime state",
       readOnly)
 
   case object PlatformAdmin extends AdminRole(
       PlatformAdminName,
-      "平台管理员",
-      "拥有所有管理资源和操作权限",
+      "Platform Admin",
+      "Full permissions over all administrative resources and operations",
       platformPermissions)
 
   val all: Seq[AdminRole] = Seq(Viewer, PlatformAdmin)

@@ -17,48 +17,63 @@
 
 package org.apache.kyuubi.server.api.v1
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+
+import scala.collection.JavaConverters._
+
 import org.apache.kyuubi.{KyuubiFunSuite, RestFrontendTestHelper}
 import org.apache.kyuubi.config.KyuubiConf
-import org.apache.kyuubi.events.KyuubiOperationEvent
-import org.apache.kyuubi.server.SqlExecutionRecordStore
+import org.apache.kyuubi.metrics.MetricsConf
+import org.apache.kyuubi.server.{ManagedAuditConfig, ManagedAuditEventService}
 
 class SqlRecordsResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper {
+  private var root: Path = _
+  private var events: Path = _
 
-  override protected lazy val conf: KyuubiConf = KyuubiConf()
+  override protected lazy val conf: KyuubiConf =
+    KyuubiConf().set(MetricsConf.METRICS_REPORTERS, Set.empty[String])
 
-  override protected def beforeEach(): Unit = {
-    super.beforeEach()
-    SqlExecutionRecordStore.clear()
+  override def beforeAll(): Unit = {
+    root = Files.createTempDirectory("sql-records-resource-")
+    events = root.resolve("events")
+    ManagedAuditEventService.setConfigFileForTesting(Some(root.resolve("audit-config.json").toFile))
+    super.beforeAll()
   }
 
-  override protected def afterEach(): Unit = {
-    SqlExecutionRecordStore.clear()
-    super.afterEach()
+  override def afterAll(): Unit = {
+    try super.afterAll()
+    finally {
+      ManagedAuditEventService.close()
+      ManagedAuditEventService.setConfigFileForTesting(None)
+      if (root != null && Files.exists(root)) {
+        val paths = Files.walk(root)
+        try paths.iterator().asScala.toList.sortBy(
+            _.getNameCount).reverse.foreach(Files.deleteIfExists)
+        finally paths.close()
+      }
+    }
   }
 
   test("lists and returns SQL execution records through REST") {
     val now = System.currentTimeMillis()
-    SqlExecutionRecordStore.record(KyuubiOperationEvent(
-      "rest-op-1",
-      "",
-      "select 42",
-      shouldRunAsync = true,
-      "FINISHED_STATE",
-      now - 2000L,
-      now - 1000L,
-      now - 900L,
-      900L,
-      900L,
-      None,
-      "rest-session",
-      "rest-user",
-      "INTERACTIVE",
-      "jdbc:test",
-      Map.empty,
-      "127.0.0.1",
-      "",
-      "JDBC",
-      ""))
+    ManagedAuditEventService.update(ManagedAuditConfig(
+      enabled = true,
+      mode = "JSON",
+      jsonPath = events.toUri.toString,
+      retentionDays = 7))
+    val eventDirectory = events.resolve("kyuubi_operation")
+      .resolve(s"day=${org.apache.kyuubi.Utils.getDateFromTimestamp(now)}")
+    Files.createDirectories(eventDirectory)
+    val json =
+      s"""{"eventTime":${now - 900L},"createTime":${now - 2000L},""" +
+        s""""startTime":${now - 1000L},"completeTime":${now - 900L},""" +
+        s""""sessionUser":"rest-user","state":"FINISHED_STATE",""" +
+        s""""statement":"select 42","statementId":"rest-op-1","sessionId":"rest-session",""" +
+        s""""engineType":"JDBC","executionDuration":900,"eventType":"kyuubi_operation"}"""
+    Files.write(
+      eventDirectory.resolve("server-test.json"),
+      (json + "\n").getBytes(StandardCharsets.UTF_8))
 
     val listResponse = webTarget.path("api/v1/sql-records")
       .queryParam("user", "rest-user")
@@ -71,6 +86,7 @@ class SqlRecordsResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper
       assert(body.contains("\"total\":1"))
       assert(body.contains("\"statementSummary\":\"select 42\""))
       assert(body.contains("\"queueWaitTimeMs\":100"))
+      assert(body.contains("\"auditEnabled\":true"))
     } finally {
       listResponse.close()
     }
@@ -83,6 +99,21 @@ class SqlRecordsResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper
       assert(detailResponse.readEntity(classOf[String]).contains("\"engineType\":\"JDBC\""))
     } finally {
       detailResponse.close()
+    }
+
+    val activityResponse = webTarget.path("api/v1/admin/event-audit/activities")
+      .queryParam("user", "rest-user")
+      .queryParam("pageSize", "10")
+      .request()
+      .get()
+    try {
+      assert(activityResponse.getStatus === 200)
+      val body = activityResponse.readEntity(classOf[String])
+      assert(body.contains("\"total\":1"))
+      assert(body.contains("\"eventCount\":1"))
+      assert(body.contains("\"operationId\":\"rest-op-1\""))
+    } finally {
+      activityResponse.close()
     }
   }
 }

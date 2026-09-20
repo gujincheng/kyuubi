@@ -18,15 +18,14 @@
 package org.apache.kyuubi.server.api.v1
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import javax.ws.rs.core.Response
 
 import com.codahale.metrics.MetricRegistry
 
 import org.apache.kyuubi.{KyuubiFunSuite, RestFrontendTestHelper}
 import org.apache.kyuubi.config.KyuubiConf
-import org.apache.kyuubi.metrics.MetricsConf
 import org.apache.kyuubi.metrics.{MetricsConstants, MetricsSystem}
+import org.apache.kyuubi.metrics.MetricsConf
 import org.apache.kyuubi.session.KyuubiSessionManager
 
 class OverviewResourceSuite extends KyuubiFunSuite with RestFrontendTestHelper {

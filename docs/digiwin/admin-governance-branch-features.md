@@ -1,32 +1,36 @@
 # 管理治理分支新增功能说明
 
+面向运维和使用人员的安装及操作入口见 [安装、使用与运维手册](operations-and-user-manual.md)。本文主要记录分支实现和历史验收，不代表最新镜像已在目标集群验收通过。
+
 本文记录 `codex/digiwin-1.12.0-admin-governance` 分支相较 `digiwin-1.12.0` 的新增功能、实现方式、数据边界和验收情况，供开发、测试、部署及后续维护使用。
 
 ## 1. 对比范围
 
-| 项目 | 内容 |
-|---|---|
-| 基线分支 | `digiwin-1.12.0` |
-| 基线提交 | `b38f3232750dec839262eb6ac542d6eb75eedd6e` |
-| 当前分支 | `codex/digiwin-1.12.0-admin-governance` |
-| 当前提交 | `6a1b7fb267f49cdcb1f3cfa471724a6aa3f5942b` |
+|  项目  |                                内容                                 |
+|------|-------------------------------------------------------------------|
+| 基线分支 | `digiwin-1.12.0`                                                  |
+| 基线提交 | `b38f3232750dec839262eb6ac542d6eb75eedd6e`                        |
+| 当前分支 | `codex/digiwin-1.12.0-admin-governance`                           |
+| 当前提交 | `6a1b7fb267f49cdcb1f3cfa471724a6aa3f5942b`                        |
 | 对比方式 | `git diff digiwin-1.12.0...codex/digiwin-1.12.0-admin-governance` |
-| 功能提交 | `eb4021068`、`6a1b7fb26` |
-| 变更规模 | 87 个文件，新增约 19,591 行，删除约 643 行 |
+| 功能提交 | `eb4021068`、`6a1b7fb26`                                           |
+| 变更规模 | 87 个文件，新增约 19,591 行，删除约 643 行                                     |
 
 上述统计截至 2026-09-15，不包含本说明文档自身，也不包含本地运行时生成的身份源、账号绑定或权限配置文件。
 
 ## 2. 功能总览
 
-| 模块 | 新增能力 | 主要入口 |
-|---|---|---|
-| Overview | Kyuubi 运行状态、SQL、Engine、队列、REST、JVM、Metadata 健康监控及趋势 | `/ui/overview` |
-| SQL Record | SQL 执行记录、筛选、详情、失败诊断、自动刷新和 CSV 导出 | `/ui/management/sql-record` |
-| 管理工作台 | Session、Operation、Engine、Server 的查询、筛选、详情与受控操作 | `/ui/management/*` |
-| 系统配置 | 运行时配置快照、敏感值脱敏、受控配置刷新 | `/ui/management/configuration` |
-| 审计日志 | HTTP/Thrift 访问审计、管理员动作审计、筛选查询 | `/ui/management/audit` |
-| 管理员权限 | 只读管理员、平台管理员及管理接口资源级鉴权 | 后端权限接口；前端整合进访问管理 |
-| 企业访问管理 | LDAP/IAM 身份源、账号绑定、访问策略、管理员角色、Session Profile、托管认证 | `/ui/management/access` |
+|     模块     |                             新增能力                             |              主要入口              |
+|------------|--------------------------------------------------------------|--------------------------------|
+| Overview   | Kyuubi 运行状态、SQL、Engine、队列、REST、JVM、Metadata 健康监控及趋势          | `/ui/overview`                 |
+| SQL Record | SQL 执行记录、筛选、详情、失败诊断、自动刷新和 CSV 导出                             | `/ui/management/sql-record`    |
+| 数据源管理      | JDBC 数据源、凭据、连接池、连接测试及启停管理                                    | `/ui/management/datasource`    |
+| 管理工作台      | Session、Operation、Engine、Server 的查询、筛选、详情与受控操作               | `/ui/management/*`             |
+| 系统配置       | 运行时配置快照、敏感值脱敏、受控配置刷新                                         | `/ui/management/configuration` |
+| 管理审计       | 管理员配置变更、操作者、目标对象和结果查询                                        | `/ui/management/audit`         |
+| Audit Log  | Kyuubi 原生 Server/Session/Operation/SQL 拦截事件，JSON/Kafka 可配置查询 | `/ui/management/event-audit`   |
+| 管理员权限      | 只读管理员、平台管理员及管理接口资源级鉴权                                        | 后端权限接口；前端整合进访问管理               |
+| 企业访问管理     | LDAP/IAM 身份源、账号绑定、访问策略、管理员角色、Session Profile、托管认证            | `/ui/management/access`        |
 
 ## 3. 总体实现关系
 
@@ -80,11 +84,11 @@ Overview 不依赖 Prometheus 服务，也不会通过 HTTP 反向抓取 `/metri
 
 `OverviewMetrics` 每 15 秒采样一次 SQL 总量、失败量、P95 延迟和队列长度：
 
-| 时间范围 | 聚合粒度 |
-|---|---:|
-| 1 小时 | 1 分钟 |
-| 1 天 | 15 分钟 |
-| 7 天 | 1 小时 |
+| 时间范围 |  聚合粒度 |
+|------|------:|
+| 1 小时 |  1 分钟 |
+| 1 天  | 15 分钟 |
+| 7 天  |  1 小时 |
 
 趋势样本最多保留 7 天，仅保存在当前 Kyuubi Server 进程内，服务重启后重新开始采集。页面会区分：
 
@@ -105,9 +109,9 @@ Overview 不依赖 Prometheus 服务，也不会通过 HTTP 反向抓取 `/metri
 
 ### 4.4 REST API
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/v1/overview/summary` | 获取当前监控快照及健康状态 |
+| 方法  |                路径                 |                   说明                    |
+|-----|-----------------------------------|-----------------------------------------|
+| GET | `/api/v1/overview/summary`        | 获取当前监控快照及健康状态                           |
 | GET | `/api/v1/overview/trend?range=1h` | 获取 SQL、失败、P95 延迟和队列趋势；支持 `1h`、`1d`、`7d` |
 
 ## 5. SQL 执行记录
@@ -146,10 +150,10 @@ SQL Record 是服务内运行诊断数据，不是持久化审计库：
 
 ### 5.4 REST API
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/v1/sql-records` | 分页查询；支持 `user`、`sessionId`、`engineType`、`state`、`keyword`、`fromTime`、`toTime` |
-| GET | `/api/v1/sql-records/{id}` | 查询单条 SQL 执行详情 |
+| 方法  |             路径             |                                      说明                                       |
+|-----|----------------------------|-------------------------------------------------------------------------------|
+| GET | `/api/v1/sql-records`      | 分页查询；支持 `user`、`sessionId`、`engineType`、`state`、`keyword`、`fromTime`、`toTime` |
+| GET | `/api/v1/sql-records/{id}` | 查询单条 SQL 执行详情                                                                 |
 
 ## 6. Session、Operation、Engine、Server 管理增强
 
@@ -185,6 +189,18 @@ SQL Record 是服务内运行诊断数据，不是持久化审计库：
 - 展示节点总量、运行状态和版本分布。
 - 详情抽屉展示服务地址、实例、命名空间、版本和节点属性。
 
+### 6.5 数据源管理
+
+- 新增独立 Data Source 页面,展示数据源总量、启用/停用数量、数据源类型和连接配置卡片。
+- 支持 StarRocks、MySQL、PostgreSQL、Oracle 模板,并支持关键字、状态和类型筛选；不展示 Kyuubi JDBC Engine 未内置适配的 SQL Server、SQLite、Generic 模板。
+- 支持 Iceberg Hive Catalog，统一维护 Metastore、Warehouse、S3 Endpoint 和可选 Session Profile；客户端只传 `kyuubi.datasource=<label>`，网关自动选择 Spark SQL Engine 并注入 Catalog 配置。
+- Iceberg Spark Engine 按数据源标签及最终配置指纹隔离；相同配置允许复用，不同 Catalog 或资源规格不会串用 Engine。
+- 支持新增、编辑、详情、启停和删除；编辑时密码留空会保持原凭据,服务端不会把明文或密文返回浏览器。
+- 提供保存前草稿测试及已保存数据源测试,成功时展示数据库产品、版本和耗时,失败时展示明确原因并返回 HTTP 502。
+- 停用数据源不会进入新 Session,但仍可由管理员执行连接诊断。
+- 连接池参数使用白名单和数值范围校验,不能覆盖 Kyuubi Engine 类型、连接地址或凭据等保留配置。
+- JDBC URL 拒绝内嵌 `password`、`passwd`、`pwd`,避免敏感信息进入日志、审计和页面。
+
 ## 7. 配置与策略管理
 
 ### 7.1 运行时配置快照
@@ -217,11 +233,11 @@ SQL Record 是服务内运行诊断数据，不是持久化审计库：
 - IP 拒绝名单在“授权详情”页签维护。
 - 旧 `/management/policy` 路径保留，并重定向到会话模板页签。
 
-## 8. 审计日志
+## 8. 审计
 
-### 8.1 审计内容
+### 8.1 管理审计
 
-复用认证过滤链和请求上下文，记录：
+管理审计复用认证过滤链和请求上下文，记录：
 
 - 用户和认证类型。
 - 客户端 IP、代理 IP、`X-Forwarded-For` 链。
@@ -230,7 +246,7 @@ SQL Record 是服务内运行诊断数据，不是持久化审计库：
 
 查询参数中的密码、Secret、Token、Credential 等敏感字段会在写入前脱敏。
 
-### 8.2 持久化
+管理审计的持久化规则如下：
 
 - 默认路径：`$KYUUBI_HOME/logs/kyuubi-audit.jsonl`。
 - 可通过 `KYUUBI_AUDIT_LOG_PATH` 指定文件。
@@ -238,11 +254,27 @@ SQL Record 是服务内运行诊断数据，不是持久化审计库：
 - 使用文件锁更新 JSONL，多个 Kyuubi Server 可读取同一个共享审计文件。
 - 持久化失败不会阻断业务请求，但会记录警告日志。
 
+### 8.2 Kyuubi 原生 Audit Log
+
+Audit Log 直接消费 Kyuubi `KyuubiEvent`，记录 Server、Session、Operation 和
+`sql_blocked` 事件。页面可选择 JSON 文件或 Kafka 作为存储方式，保存后立即切换新事件的写入和查询，无需重启 Server。
+
+- JSON 模式仅接受 `file://` 目录，页面直接读取原生事件文件。
+- Kafka 模式支持 PLAINTEXT、SSL、SASL_PLAINTEXT 和 SASL_SSL，页面直接消费配置的 Topic。
+- “测试配置”会验证目录可写性，或向 Kafka 写入探针并按分区和偏移回读。
+- Kafka 密码和 Truststore 密码使用现有 CredentialAccessor 加密保存，响应中不返回明文。
+- 原始事件返回页面前会递归脱敏；切换存储方式不会迁移或删除旧存储中的事件。
+- 页面配置保存在可写配置目录的 `kyuubi-audit-config.json`。
+
 ### 8.3 REST API
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/v1/admin/audit` | 支持按用户、方法、状态码和时间范围筛选，最多返回 200 条 |
+|  方法  |                 路径                 |                   说明                    |
+|------|------------------------------------|-----------------------------------------|
+| GET  | `/api/v1/admin/audit`              | 查询管理审计，支持按用户、动作、结果和时间范围筛选               |
+| GET  | `/api/v1/admin/event-audit/config` | 查询原生 Audit Log 当前配置和健康状态                |
+| PUT  | `/api/v1/admin/event-audit/config` | 保存 JSON/Kafka 配置并立即生效                   |
+| POST | `/api/v1/admin/event-audit/test`   | 测试 JSON 目录或 Kafka Topic 的真实读写           |
+| GET  | `/api/v1/admin/event-audit/events` | 从当前 JSON 目录或 Kafka Topic 查询真实 Kyuubi 事件 |
 
 ## 9. 管理员权限模型
 
@@ -250,10 +282,10 @@ SQL Record 是服务内运行诊断数据，不是持久化审计库：
 
 当前仅保留两类管理角色：
 
-| 角色 | 标识 | 能力 |
-|---|---|---|
-| 只读管理员 | `viewer` | 查看管理数据，不能修改、刷新、关闭或删除资源 |
-| 平台管理员 | `platform-admin` | 拥有全部平台管理能力 |
+|  角色   |        标识        |           能力           |
+|-------|------------------|------------------------|
+| 只读管理员 | `viewer`         | 查看管理数据，不能修改、刷新、关闭或删除资源 |
+| 平台管理员 | `platform-admin` | 拥有全部平台管理能力             |
 
 普通用户不分配管理员角色。其数据库、表、列等数据权限仍由计算引擎、LDAP/IAM 或企业数据权限系统决定，不由本模块管理。
 
@@ -312,13 +344,13 @@ Kyuubi 不创建或维护企业用户账号。LDAP、IAM 或统一认证中心�
 
 保存绑定时会同步更新已有 Kyuubi 配置来源：
 
-| 绑定字段 | 投影目标 |
-|---|---|
-| `role` | `kyuubi-admin-permissions.json` |
-| `access=DENIED` | 用户拒绝名单 |
-| `quotaExempt=true` | 用户无限制名单 |
-| `profile` | 用户默认配置中的 `kyuubi.session.conf.profile` |
-| `userDefaults` | `kyuubi-defaults.conf` 用户默认配置 |
+|        绑定字段        |                  投影目标                  |
+|--------------------|----------------------------------------|
+| `role`             | `kyuubi-admin-permissions.json`        |
+| `access=DENIED`    | 用户拒绝名单                                 |
+| `quotaExempt=true` | 用户无限制名单                                |
+| `profile`          | 用户默认配置中的 `kyuubi.session.conf.profile` |
+| `userDefaults`     | `kyuubi-defaults.conf` 用户默认配置          |
 
 解除绑定会同步删除上述本地投影，但不会删除 LDAP/IAM 中的账号。
 
@@ -356,17 +388,17 @@ Kyuubi 不创建或维护企业用户账号。LDAP、IAM 或统一认证中心�
 
 ### 10.6 REST API
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/v1/admin/access` | 获取身份源、账号绑定和托管认证状态 |
-| PUT | `/api/v1/admin/access/providers` | 新增或修改身份源 |
-| DELETE | `/api/v1/admin/access/providers/{id}` | 删除无绑定的身份源 |
-| POST | `/api/v1/admin/access/providers/{id}/test` | 测试身份源连接 |
-| GET | `/api/v1/admin/access/providers/{id}/subjects` | 查询外部用户或用户组目录 |
-| PUT | `/api/v1/admin/access/bindings` | 新增或修改用户授权绑定 |
-| DELETE | `/api/v1/admin/access/bindings/{id}` | 解除本地授权绑定 |
-| POST | `/api/v1/admin/access/activate` | 保存托管认证启用配置 |
-| POST | `/api/v1/admin/access/deactivate` | 保存托管认证停用配置 |
+|   方法   |                       路径                       |        说明         |
+|--------|------------------------------------------------|-------------------|
+| GET    | `/api/v1/admin/access`                         | 获取身份源、账号绑定和托管认证状态 |
+| PUT    | `/api/v1/admin/access/providers`               | 新增或修改身份源          |
+| DELETE | `/api/v1/admin/access/providers/{id}`          | 删除无绑定的身份源         |
+| POST   | `/api/v1/admin/access/providers/{id}/test`     | 测试身份源连接           |
+| GET    | `/api/v1/admin/access/providers/{id}/subjects` | 查询外部用户或用户组目录      |
+| PUT    | `/api/v1/admin/access/bindings`                | 新增或修改用户授权绑定       |
+| DELETE | `/api/v1/admin/access/bindings/{id}`           | 解除本地授权绑定          |
+| POST   | `/api/v1/admin/access/activate`                | 保存托管认证启用配置        |
+| POST   | `/api/v1/admin/access/deactivate`              | 保存托管认证停用配置        |
 
 ## 11. 前端工程改进
 
@@ -379,16 +411,17 @@ Kyuubi 不创建或维护企业用户账号。LDAP、IAM 或统一认证中心�
 
 ## 12. 数据与持久化边界
 
-| 数据 | 保存位置 | 生命周期 | 集群范围 |
-|---|---|---|---|
-| Overview 当前快照 | `MetricsSystem` | 实时 | 当前 Server |
-| Overview 趋势 | 进程内存 | 7 天；重启清空 | 当前 Server |
-| SQL Record | 进程内存 | 24 小时/10,000 条；重启清空 | 当前 Server |
-| 管理审计 | JSONL 文件 | 24 小时/2,000 条 | 可使用共享文件 |
-| 身份源与账号绑定 | `kyuubi-identity-access.json` | 持久化 | 取决于配置文件是否共享 |
-| 管理员角色绑定 | `kyuubi-admin-permissions.json` | 持久化 | 取决于配置文件是否共享 |
-| 用户默认配置、黑白名单 | `kyuubi-defaults.conf` | 持久化并支持热刷新 | 取决于配置文件分发方式 |
-| Session Profile | `kyuubi-session-*.conf` | 持久化 | 取决于配置文件分发方式 |
+|         数据          |              保存位置               |        生命周期         |      集群范围      |
+|---------------------|---------------------------------|---------------------|----------------|
+| Overview 当前快照       | `MetricsSystem`                 | 实时                  | 当前 Server      |
+| Overview 趋势         | 进程内存                            | 7 天；重启清空            | 当前 Server      |
+| SQL Record          | 进程内存                            | 24 小时/10,000 条；重启清空 | 当前 Server      |
+| 管理审计                | JSONL 文件                        | 24 小时/2,000 条       | 可使用共享文件        |
+| Kyuubi 原生 Audit Log | JSON 事件目录或 Kafka Topic          | 页面配置的保留天数           | 共享目录或 Kafka 集群 |
+| 身份源与账号绑定            | `kyuubi-identity-access.json`   | 持久化                 | 取决于配置文件是否共享    |
+| 管理员角色绑定             | `kyuubi-admin-permissions.json` | 持久化                 | 取决于配置文件是否共享    |
+| 用户默认配置、黑白名单         | `kyuubi-defaults.conf`          | 持久化并支持热刷新           | 取决于配置文件分发方式    |
+| Session Profile     | `kyuubi-session-*.conf`         | 持久化                 | 取决于配置文件分发方式    |
 
 多 Server 部署时，Overview 趋势和 SQL Record 不做跨节点聚合。身份源、角色和策略文件需要放在共享存储，或通过部署系统保证每个节点配置一致。
 
@@ -421,6 +454,10 @@ Kyuubi 不创建或维护企业用户账号。LDAP、IAM 或统一认证中心�
 - `IdentityAccessStoreSuite`
 - `IdentityDirectoryServiceSuite`
 - `AdminAccessResourceSuite`
+- `DatasourceConnectionTesterSuite`
+- `DatasourceRegistrySuite`
+- `DatasourceConfAdvisorSuite`
+- `DatasourcesResourceSuite`
 - `KyuubiOperationSuite`
 
 身份访问测试会启动真实的进程内 LDAP 和轻量 IAM HTTP 服务，覆盖连接测试、目录查询、正确/错误密码、多身份源认证、绑定投影、解绑清理和认证启停配置。
@@ -440,8 +477,13 @@ Kyuubi 不创建或维护企业用户账号。LDAP、IAM 或统一认证中心�
 - 页面指标与 `/api/v1/overview/*`、`/metrics` 同源指标对账。
 - SQL Record 的筛选、详情、刷新、失败原因、耗时和导出请求。
 - Session、Operation、Engine、Server 的真实数据、详情和管理动作。
-- System Setting 和 Audit Log 的真实 REST 数据及筛选。
+- System Setting、Management Audit 和 Audit Log 的真实 REST 数据及筛选。
+- Audit Log 的 JSON/Kafka 在线配置、探针测试、热切换及 Beeline SQL 五阶段原生事件对账。
 - LDAP 身份源连接、alice/bob/carol 目录查询、授权筛选、授权详情和编辑入口。
+- 数据源新增、StarRocks 真实连接、编辑、连接池、启停、筛选、详情、失败提示及凭据持久化对账。
+- 从页面创建 Iceberg 数据源并测试真实 HMS `172.16.7.137:9083`，随后仅通过数据源
+  label 启动 Spark 3.5.8 Engine，完成 Iceberg 建库、建表、写入、查询和清理。
+- 验证数据源配置变化会生成新的配置指纹和 Engine subdomain，避免复用旧 Catalog 配置。
 - 旧 Policy/Permissions 路由兼容跳转。
 - 浏览器控制台无运行错误。
 
@@ -466,3 +508,4 @@ Kyuubi 不创建或维护企业用户账号。LDAP、IAM 或统一认证中心�
 - 管理员角色当前只有只读管理员和平台管理员，不支持页面自定义角色。
 - IAM 接口采用约定式 HTTP/JSON 映射，不包含 OAuth/OIDC 浏览器跳转流程。
 - 托管认证切换依赖修改配置文件并重启，不支持运行时无损切换。
+
